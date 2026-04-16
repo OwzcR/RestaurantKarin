@@ -1,2 +1,5 @@
 ﻿# Ignorar credenciales de base de datos
 App.config
+# Ignorar bases de datos locales de SQLite
+*.db
+*.sqlite

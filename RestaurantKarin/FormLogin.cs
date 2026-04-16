@@ -1,7 +1,9 @@
 ﻿using MySql.Data.MySqlClient;
 using System;
 using System.Configuration;
+using System.Data.SQLite;
 using System.Drawing;
+using System.Runtime.Intrinsics.Arm;
 using System.Windows.Forms;
 
 namespace RestaurantKarin
@@ -11,6 +13,7 @@ namespace RestaurantKarin
         public FormLogin()
         {
             InitializeComponent();
+            DatabaseHelper.InicializarBaseDeDatos();
             SetupUI();
         }
 
@@ -168,6 +171,7 @@ namespace RestaurantKarin
             btnEntrar.FlatAppearance.BorderSize = 0;
             btnEntrar.Font = new Font("Segoe UI", 12, FontStyle.Bold);
             btnEntrar.Cursor = Cursors.Hand;
+            // Botón Entrar (Azul oscuro principal)
             btnEntrar.Click += (s, e) =>
             {
                 string pinIngresado = txtPIN.Text;
@@ -177,35 +181,39 @@ namespace RestaurantKarin
 
                 try
                 {
-                    // Creamos la conexión al servidor
-                    using (MySqlConnection conexion = new MySqlConnection(cadenaConexion))
+                    // CAMBIO 1: Usamos SQLiteConnection en lugar de MySqlConnection
+                    using (SQLiteConnection conexion = new SQLiteConnection(cadenaConexion))
                     {
-                        conexion.Open(); // Abrimos la puerta al servidor
+                        conexion.Open(); // Abrimos el archivo local
 
-                        // Preparamos la pregunta (Query) de forma segura para evitar Hackeos (Inyección SQL)
-                        string query = "SELECT nombre, rol FROM usuario WHERE pin_acceso = @pin AND estado = TRUE";
+                        // CAMBIO 2: Cambiamos "estado = TRUE" por "estado = 1" (Así lo maneja SQLite)
+                        string query = "SELECT nombre, rol FROM usuario WHERE pin_acceso = @pin AND estado = 1";
 
-                        using (MySqlCommand comando = new MySqlCommand(query, conexion))
+                        // CAMBIO 3: Usamos SQLiteCommand
+                        using (SQLiteCommand comando = new SQLiteCommand(query, conexion))
                         {
                             comando.Parameters.AddWithValue("@pin", pinIngresado);
 
-                            // Ejecutamos la búsqueda
-                            using (MySqlDataReader lector = comando.ExecuteReader())
+                            // CAMBIO 4: Usamos SQLiteDataReader
+                            using (SQLiteDataReader lector = comando.ExecuteReader())
                             {
                                 if (lector.Read()) // Si encontró una fila, el PIN es correcto
                                 {
-                                    string nombreUsuario = lector.GetString("nombre");
-                                    string rolUsuario = lector.GetString("rol");
+                                  
+                                    string nombreUsuario = lector["nombre"].ToString();
+                                    string rolUsuario = lector["rol"].ToString();
 
                                     MessageBox.Show($"¡Acceso Autorizado!\n\nBienvenido(a): {nombreUsuario}\nRol: {rolUsuario}",
                                                     "Login Exitoso", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                                     txtPIN.Clear();
 
-                                    // ¡AQUÍ ES DONDE ABRIREMOS LA PANTALLA PRINCIPAL DEL POS MÁS ADELANTE!
-                                    // FormPrincipal main = new FormPrincipal();
-                                    // main.Show();
-                                    // this.Hide();
+                                    Base principal = new Base();
+
+                                    principal.FormClosed += (s, args) => Application.Exit();
+
+                                    principal.Show();
+                                    this.Hide();
                                 }
                                 else // Si no encontró nada, el PIN no existe
                                 {
@@ -219,11 +227,12 @@ namespace RestaurantKarin
                 }
                 catch (Exception ex)
                 {
-                    // Si el servidor está apagado o la IP está mal, te avisa el error exacto
-                    MessageBox.Show("No se pudo conectar al servidor de base de datos.\n\nDetalle: " + ex.Message,
-                                    "Error de Conexión", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    // Mensaje de error actualizado para entorno local
+                    MessageBox.Show("No se pudo acceder a la base de datos local.\n\nDetalle: " + ex.Message,
+                                    "Error de Base de Datos", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
+
             card.Controls.Add(btnEntrar);
         }
 
