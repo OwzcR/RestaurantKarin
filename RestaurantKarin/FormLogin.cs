@@ -19,13 +19,13 @@ namespace RestaurantKarin
         private void SetupUI()
         {
             // ===== 1. CONFIGURACIÓN DEL FORMULARIO BASE =====
-            this.Text = "Login - Restaurante Karin";
+            this.Text = "Iniciar Sesión";
             this.Size = new Size(900, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
 
-            
+
             this.AutoScaleMode = AutoScaleMode.None;
 
             // RUTAS DINÁMICAS: Encuentra la carpeta Imgs sin importar en qué PC estés
@@ -247,6 +247,11 @@ namespace RestaurantKarin
             };
 
             return btn;
+        }
+
+        private void FormLogin_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

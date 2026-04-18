@@ -37,6 +37,7 @@
             ClientSize = new Size(832, 431);
             Name = "FormLogin";
             Text = "FormLogin";
+            Load += FormLogin_Load;
             ResumeLayout(false);
         }
 
