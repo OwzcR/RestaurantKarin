@@ -283,6 +283,7 @@
             PanelContenedor.BackgroundImageLayout = ImageLayout.Stretch;
             PanelContenedor.CustomizableEdges = customizableEdges18;
             PanelContenedor.Dock = DockStyle.Fill;
+            PanelContenedor.FillColor = Color.Transparent;
             PanelContenedor.Location = new Point(153, 0);
             PanelContenedor.Name = "PanelContenedor";
             PanelContenedor.ShadowDecoration.CustomizableEdges = customizableEdges19;
