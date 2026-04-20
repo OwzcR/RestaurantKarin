@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
-using System.Reflection; 
+using System.Reflection;
 using System.Windows.Forms;
 
 namespace RestaurantKarin
@@ -120,7 +120,15 @@ namespace RestaurantKarin
             menuButtons.Add(CrearBotonMenu("Inventario", "inventario.png", startY + spacing * 2));
             menuButtons.Add(CrearBotonMenu("Recetas", "recetas.png", startY + spacing * 3));
             menuButtons.Add(CrearBotonMenu("Reportes", "reportes.png", startY + spacing * 4));
-            menuButtons.Add(CrearBotonMenu("Ajustes", "configuration.png", startY + spacing * 5));
+
+            // ===== BOTÓN AJUSTES CON ACCIÓN =====
+            Button btnAjustes = CrearBotonMenu("Ajustes", "configuration.png", startY + spacing * 5);
+            btnAjustes.Click += (s, e) =>
+            {
+                FormConfiguracion frmConfig = new FormConfiguracion();
+                frmConfig.ShowDialog();
+            };
+            menuButtons.Add(btnAjustes);
 
             btnLogOut = CrearBotonMenu("Salir", "logout.png", 0);
             btnLogOut.Click += BtnLogOut_Click;
