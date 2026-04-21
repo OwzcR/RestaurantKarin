@@ -165,6 +165,12 @@ namespace RestaurantKarin
                                     Sesion.Nombre = lector["nombre"].ToString();
                                     Sesion.Rol = lector["rol"].ToString();
 
+                                    MessageBox.Show(
+                                        $"¡Acceso Autorizado!\n\nBienvenido(a): {Sesion.Nombre}\nRol: {Sesion.Rol}",
+                                        "Login Exitoso",
+                                        MessageBoxButtons.OK,
+                                        MessageBoxIcon.Information);
+
                                     txtPIN.Clear();
 
                                     Base principal = new Base();
