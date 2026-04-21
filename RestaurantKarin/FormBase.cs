@@ -118,7 +118,10 @@ namespace RestaurantKarin
             menuButtons.Add(CrearBotonMenu("Pedidos", "pedidos.png", startY));
             menuButtons.Add(CrearBotonMenu("Cuentas", "cuentas.png", startY + spacing));
             menuButtons.Add(CrearBotonMenu("Inventario", "inventario.png", startY + spacing * 2));
-            menuButtons.Add(CrearBotonMenu("Recetas", "recetas.png", startY + spacing * 3));
+            // Módulo Recetas: pantallas embebidas en el panel principal (no afecta otras rutas del menú).
+            Button btnRecetas = CrearBotonMenu("Recetas", "recetas.png", startY + spacing * 3);
+            btnRecetas.Click += (_, _) => CargarModuloRecetas();
+            menuButtons.Add(btnRecetas);
             menuButtons.Add(CrearBotonMenu("Reportes", "reportes.png", startY + spacing * 4));
 
             // Solo Admin ve Ajustes
@@ -220,6 +223,20 @@ namespace RestaurantKarin
                     animacionTimer.Stop();
                 }
             }
+        }
+
+        /// <summary>
+        /// Inserta el módulo de recetas en el panel de contenido principal (área a la derecha del menú lateral).
+        /// Los demás botones del menú permanecen como estaban para no interferir con el trabajo del equipo.
+        /// </summary>
+        public void CargarModuloRecetas()
+        {
+            PanelContenedor.Controls.Clear();
+            var moduloRecetas = new PantallaRecetas
+            {
+                Dock = DockStyle.Fill
+            };
+            PanelContenedor.Controls.Add(moduloRecetas);
         }
 
         private void BtnLogOut_Click(object sender, EventArgs e)

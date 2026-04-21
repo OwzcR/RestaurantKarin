@@ -86,6 +86,25 @@ namespace RestaurantKarin
                             FOREIGN KEY (id_producto) REFERENCES producto(id_producto)
                         );
 
+                        -- Recetas (pantalla Recetas)
+                        CREATE TABLE receta (
+                            id_receta INTEGER PRIMARY KEY AUTOINCREMENT,
+                            nombre TEXT NOT NULL,
+                            descripcion TEXT,
+                            porciones REAL NOT NULL DEFAULT 1,
+                            costo_por_porcion REAL NOT NULL DEFAULT 0
+                        );
+
+                        CREATE TABLE receta_linea (
+                            id_linea INTEGER PRIMARY KEY AUTOINCREMENT,
+                            id_receta INTEGER NOT NULL,
+                            insumo TEXT NOT NULL,
+                            cantidad REAL NOT NULL,
+                            unidad TEXT NOT NULL,
+                            costo_total REAL NOT NULL DEFAULT 0,
+                            FOREIGN KEY (id_receta) REFERENCES receta(id_receta) ON DELETE CASCADE
+                        );
+
                         -- DATOS DE PRUEBA (Para que puedan iniciar sesión)
                         INSERT INTO usuario (nombre, rol, pin_acceso) VALUES ('Dueño Karin', 'Admin', '1234');
                         INSERT INTO usuario (nombre, rol, pin_acceso) VALUES ('Mesero Estrella', 'Mesero', '5678');
@@ -105,6 +124,48 @@ namespace RestaurantKarin
                     }
                 }
             }
+
+            // Bases ya existentes (creadas antes de agregar recetas): crea tablas si faltan y datos demo si está vacío.
+            AsegurarTablasRecetas();
+        }
+
+        /// <summary>
+        /// Crea tablas de recetas en bases antiguas y rellena ejemplos si no hay filas.
+        /// </summary>
+        public static void AsegurarTablasRecetas()
+        {
+            string nombreArchivo = "karin_pos.db";
+            if (!File.Exists(nombreArchivo))
+                return;
+
+            using (var conexion = new SQLiteConnection($"Data Source={nombreArchivo};Version=3;"))
+            {
+                conexion.Open();
+                using (var pragma = new SQLiteCommand("PRAGMA foreign_keys = ON;", conexion))
+                    pragma.ExecuteNonQuery();
+
+                string sql = @"
+CREATE TABLE IF NOT EXISTS receta (
+    id_receta INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    descripcion TEXT,
+    porciones REAL NOT NULL DEFAULT 1,
+    costo_por_porcion REAL NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS receta_linea (
+    id_linea INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_receta INTEGER NOT NULL,
+    insumo TEXT NOT NULL,
+    cantidad REAL NOT NULL,
+    unidad TEXT NOT NULL,
+    costo_total REAL NOT NULL DEFAULT 0,
+    FOREIGN KEY (id_receta) REFERENCES receta(id_receta) ON DELETE CASCADE
+);";
+                using (var comando = new SQLiteCommand(sql, conexion))
+                    comando.ExecuteNonQuery();
+            }
+
+            RecetasBaseDatos.SembrarEjemplosSiVacio();
         }
     }
 }
