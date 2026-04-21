@@ -95,6 +95,7 @@ namespace RestaurantKarin
             txtPIN.UseSystemPasswordChar = true;
             txtPIN.BackColor = Color.FromArgb(245, 245, 245);
             txtPIN.BorderStyle = BorderStyle.FixedSingle;
+            txtPIN.MaxLength = 4;
             card.Controls.Add(txtPIN);
 
             int startX = 65;
@@ -149,22 +150,23 @@ namespace RestaurantKarin
 
                 try
                 {
-                    using (var conexion = new System.Data.SQLite.SQLiteConnection(cadenaConexion))
+                    using (var conexion = new SQLiteConnection(cadenaConexion))
                     {
                         conexion.Open();
                         string query = "SELECT nombre, rol FROM usuario WHERE pin_acceso = @pin AND estado = 1";
-                        using (var comando = new System.Data.SQLite.SQLiteCommand(query, conexion))
+                        using (var comando = new SQLiteCommand(query, conexion))
                         {
                             comando.Parameters.AddWithValue("@pin", pinIngresado);
                             using (var lector = comando.ExecuteReader())
                             {
                                 if (lector.Read())
                                 {
-                                    string nombreUsuario = lector["nombre"].ToString();
-                                    string rolUsuario = lector["rol"].ToString();
-                                    MessageBox.Show($"¡Acceso Autorizado!\n\nBienvenido(a): {nombreUsuario}\nRol: {rolUsuario}",
-                                                    "Login Exitoso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                    // Guardamos el rol en la sesión global
+                                    Sesion.Nombre = lector["nombre"].ToString();
+                                    Sesion.Rol = lector["rol"].ToString();
+
                                     txtPIN.Clear();
+
                                     Base principal = new Base();
                                     principal.FormClosed += (senderArgs, evtArgs) => Application.Exit();
                                     principal.Show();
@@ -187,25 +189,6 @@ namespace RestaurantKarin
                 }
             };
             card.Controls.Add(btnEntrar);
-
-            // ===== BOTÓN AJUSTES =====
-            Button btnAjustes = new Button();
-            btnAjustes.Text = "⚙ Ajustes";
-            btnAjustes.Size = new Size(90, 25);
-            btnAjustes.Location = new Point(235, 505);
-            btnAjustes.BackColor = Color.Transparent;
-            btnAjustes.ForeColor = Color.FromArgb(29, 53, 87);
-            btnAjustes.FlatStyle = FlatStyle.Flat;
-            btnAjustes.FlatAppearance.BorderSize = 0;
-            btnAjustes.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 230, 245);
-            btnAjustes.Font = new Font("Segoe UI", 8, FontStyle.Regular);
-            btnAjustes.Cursor = Cursors.Hand;
-            btnAjustes.Click += (s, e) =>
-            {
-                FormConfiguracion frmConfig = new FormConfiguracion();
-                frmConfig.ShowDialog();
-            };
-            card.Controls.Add(btnAjustes);
         }
 
         private Button CrearBotonNumero(string numero, TextBox txt)
@@ -222,7 +205,7 @@ namespace RestaurantKarin
             btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 220, 220);
             btn.Click += (s, e) =>
             {
-                if (txt.Text.Length < 6)
+                if (txt.Text.Length < 4)
                     txt.Text += numero;
             };
             return btn;

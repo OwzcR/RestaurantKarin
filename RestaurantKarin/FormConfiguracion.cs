@@ -17,8 +17,8 @@ namespace RestaurantKarin
 
         private void SetupUI()
         {
-            this.Text = "Ajustes";
-            this.Size = new Size(560, 520);
+            this.Text = "Ajustes — Administrador";
+            this.Size = new Size(700, 620);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -33,84 +33,344 @@ namespace RestaurantKarin
             }
             catch { }
 
-            // ===== TARJETA BLANCA =====
-            Panel card = new Panel();
-            card.Size = new Size(460, 410);
-            card.Location = new Point(50, 50);
-            card.BackColor = Color.White;
-            card.BorderStyle = BorderStyle.None;
-            this.Controls.Add(card);
+            // ===== TABS =====
+            TabControl tabs = new TabControl();
+            tabs.Size = new Size(640, 530);
+            tabs.Location = new Point(30, 35);
+            tabs.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            this.Controls.Add(tabs);
 
-            // Título
-            Label lblTitulo = new Label();
-            lblTitulo.Text = "Cambiar PIN";
-            lblTitulo.Font = new Font("Segoe UI", 18, FontStyle.Bold);
-            lblTitulo.ForeColor = Color.FromArgb(29, 53, 87);
-            lblTitulo.Size = new Size(460, 45);
-            lblTitulo.Location = new Point(0, 20);
-            lblTitulo.TextAlign = ContentAlignment.MiddleCenter;
-            card.Controls.Add(lblTitulo);
+            TabPage tabUsuarios = new TabPage("👥  Usuarios");
+            tabUsuarios.BackColor = Color.White;
+            tabs.TabPages.Add(tabUsuarios);
 
-            // Línea separadora
+            TabPage tabPin = new TabPage("🔑  Cambiar PIN");
+            tabPin.BackColor = Color.White;
+            tabs.TabPages.Add(tabPin);
+
+            ConstruirTabUsuarios(tabUsuarios);
+            ConstruirTabPin(tabPin);
+        }
+
+        // =====================================================
+        //  TAB 1 — GESTIÓN DE USUARIOS
+        // =====================================================
+        private void ConstruirTabUsuarios(TabPage tab)
+        {
+            // Lista de usuarios
+            ListView lista = new ListView();
+            lista.Size = new Size(590, 220);
+            lista.Location = new Point(20, 15);
+            lista.View = View.Details;
+            lista.FullRowSelect = true;
+            lista.GridLines = true;
+            lista.Font = new Font("Segoe UI", 10);
+            lista.Columns.Add("ID", 40);
+            lista.Columns.Add("Nombre", 180);
+            lista.Columns.Add("Rol", 100);
+            lista.Columns.Add("Estado", 80);
+            lista.Columns.Add("PIN", 100);
+            tab.Controls.Add(lista);
+
+            CargarUsuarios(lista);
+
+            // Separador
             Panel sep = new Panel();
-            sep.Size = new Size(400, 2);
-            sep.Location = new Point(30, 68);
+            sep.Size = new Size(590, 2);
+            sep.Location = new Point(20, 248);
             sep.BackColor = Color.FromArgb(220, 220, 220);
-            card.Controls.Add(sep);
+            tab.Controls.Add(sep);
 
-            // ===== PIN ACTUAL =====
-            Label lblActual = new Label();
-            lblActual.Text = "PIN actual";
-            lblActual.Font = new Font("Segoe UI", 10, FontStyle.Regular);
-            lblActual.ForeColor = Color.FromArgb(80, 80, 80);
-            lblActual.Location = new Point(30, 88);
-            lblActual.AutoSize = true;
-            card.Controls.Add(lblActual);
+            Label lblNuevo = new Label();
+            lblNuevo.Text = "Agregar nuevo usuario";
+            lblNuevo.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            lblNuevo.ForeColor = Color.FromArgb(29, 53, 87);
+            lblNuevo.Location = new Point(20, 260);
+            lblNuevo.AutoSize = true;
+            tab.Controls.Add(lblNuevo);
 
-            TextBox txtActual = new TextBox();
-            txtActual.Size = new Size(360, 35);
-            txtActual.Location = new Point(30, 108);
-            txtActual.Font = new Font("Segoe UI", 13, FontStyle.Regular);
-            txtActual.UseSystemPasswordChar = true;
-            txtActual.BackColor = Color.FromArgb(245, 245, 245);
-            txtActual.BorderStyle = BorderStyle.FixedSingle;
-            txtActual.MaxLength = 4;
-            card.Controls.Add(txtActual);
+            // Nombre
+            Label lblNombre = new Label();
+            lblNombre.Text = "Nombre";
+            lblNombre.Font = new Font("Segoe UI", 9);
+            lblNombre.ForeColor = Color.Gray;
+            lblNombre.Location = new Point(20, 290);
+            lblNombre.AutoSize = true;
+            tab.Controls.Add(lblNombre);
 
-            Button btnVerActual = CrearBotonOjo(txtActual);
-            btnVerActual.Location = new Point(395, 108);
-            card.Controls.Add(btnVerActual);
+            TextBox txtNombre = new TextBox();
+            txtNombre.Size = new Size(200, 30);
+            txtNombre.Location = new Point(20, 308);
+            txtNombre.Font = new Font("Segoe UI", 11);
+            txtNombre.BackColor = Color.FromArgb(245, 245, 245);
+            txtNombre.BorderStyle = BorderStyle.FixedSingle;
+            tab.Controls.Add(txtNombre);
 
-            // ===== PIN NUEVO =====
+            // Rol
+            Label lblRol = new Label();
+            lblRol.Text = "Rol";
+            lblRol.Font = new Font("Segoe UI", 9);
+            lblRol.ForeColor = Color.Gray;
+            lblRol.Location = new Point(235, 290);
+            lblRol.AutoSize = true;
+            tab.Controls.Add(lblRol);
+
+            ComboBox cmbRol = new ComboBox();
+            cmbRol.Size = new Size(130, 30);
+            cmbRol.Location = new Point(235, 308);
+            cmbRol.Font = new Font("Segoe UI", 11);
+            cmbRol.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbRol.Items.AddRange(new string[] { "Mesero", "Admin" });
+            cmbRol.SelectedIndex = 0;
+            tab.Controls.Add(cmbRol);
+
+            // PIN nuevo usuario
+            Label lblPinNew = new Label();
+            lblPinNew.Text = "PIN (4 dígitos)";
+            lblPinNew.Font = new Font("Segoe UI", 9);
+            lblPinNew.ForeColor = Color.Gray;
+            lblPinNew.Location = new Point(380, 290);
+            lblPinNew.AutoSize = true;
+            tab.Controls.Add(lblPinNew);
+
+            TextBox txtPinNew = new TextBox();
+            txtPinNew.Size = new Size(120, 30);
+            txtPinNew.Location = new Point(380, 308);
+            txtPinNew.Font = new Font("Segoe UI", 11);
+            txtPinNew.MaxLength = 4;
+            txtPinNew.UseSystemPasswordChar = true;
+            txtPinNew.BackColor = Color.FromArgb(245, 245, 245);
+            txtPinNew.BorderStyle = BorderStyle.FixedSingle;
+            tab.Controls.Add(txtPinNew);
+
+            // Botón agregar
+            Button btnAgregar = new Button();
+            btnAgregar.Text = "➕  Agregar";
+            btnAgregar.Size = new Size(130, 38);
+            btnAgregar.Location = new Point(20, 360);
+            btnAgregar.BackColor = Color.FromArgb(29, 53, 87);
+            btnAgregar.ForeColor = Color.White;
+            btnAgregar.FlatStyle = FlatStyle.Flat;
+            btnAgregar.FlatAppearance.BorderSize = 0;
+            btnAgregar.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            btnAgregar.Cursor = Cursors.Hand;
+            tab.Controls.Add(btnAgregar);
+
+            // Botón eliminar
+            Button btnEliminar = new Button();
+            btnEliminar.Text = "🗑  Eliminar";
+            btnEliminar.Size = new Size(130, 38);
+            btnEliminar.Location = new Point(165, 360);
+            btnEliminar.BackColor = Color.FromArgb(239, 83, 80);
+            btnEliminar.ForeColor = Color.White;
+            btnEliminar.FlatStyle = FlatStyle.Flat;
+            btnEliminar.FlatAppearance.BorderSize = 0;
+            btnEliminar.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            btnEliminar.Cursor = Cursors.Hand;
+            tab.Controls.Add(btnEliminar);
+
+            // ===== LÓGICA AGREGAR =====
+            btnAgregar.Click += (s, e) =>
+            {
+                string nombre = txtNombre.Text.Trim();
+                string rol = cmbRol.SelectedItem.ToString();
+                string pin = txtPinNew.Text.Trim();
+
+                if (nombre == "" || pin == "")
+                {
+                    MostrarMensaje("Llena todos los campos ❌", Color.FromArgb(239, 83, 80)); return;
+                }
+                if (pin.Length != 4)
+                {
+                    MostrarMensaje("El PIN debe tener exactamente 4 dígitos ❌", Color.FromArgb(239, 83, 80)); return;
+                }
+
+                try
+                {
+                    string cadena = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
+                    using (var con = new SQLiteConnection(cadena))
+                    {
+                        con.Open();
+                        string q = "INSERT INTO usuario (nombre, rol, pin_acceso) VALUES (@n, @r, @p)";
+                        using (var cmd = new SQLiteCommand(q, con))
+                        {
+                            cmd.Parameters.AddWithValue("@n", nombre);
+                            cmd.Parameters.AddWithValue("@r", rol);
+                            cmd.Parameters.AddWithValue("@p", pin);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                    MostrarMensaje("Usuario agregado ✅", Color.FromArgb(44, 160, 44));
+                    txtNombre.Clear();
+                    txtPinNew.Clear();
+                    CargarUsuarios(lista);
+                }
+                catch (Exception ex)
+                {
+                    MostrarMensaje("Error: " + ex.Message, Color.FromArgb(239, 83, 80));
+                }
+            };
+
+            // ===== LÓGICA ELIMINAR =====
+            btnEliminar.Click += (s, e) =>
+            {
+                if (lista.SelectedItems.Count == 0)
+                {
+                    MostrarMensaje("Selecciona un usuario de la lista ❌", Color.FromArgb(239, 83, 80)); return;
+                }
+
+                string nombreSel = lista.SelectedItems[0].SubItems[1].Text;
+                string rolSel = lista.SelectedItems[0].SubItems[2].Text;
+
+                if (rolSel == "Admin" && nombreSel == Sesion.Nombre)
+                {
+                    MostrarMensaje("No puedes eliminar tu propia cuenta ❌", Color.FromArgb(239, 83, 80)); return;
+                }
+
+                int idSel = int.Parse(lista.SelectedItems[0].SubItems[0].Text);
+
+                var confirm = MessageBox.Show($"¿Eliminar al usuario '{nombreSel}'?", "Confirmar",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (confirm != DialogResult.Yes) return;
+
+                try
+                {
+                    string cadena = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
+                    using (var con = new SQLiteConnection(cadena))
+                    {
+                        con.Open();
+                        string q = "DELETE FROM usuario WHERE id_usuario = @id";
+                        using (var cmd = new SQLiteCommand(q, con))
+                        {
+                            cmd.Parameters.AddWithValue("@id", idSel);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                    MostrarMensaje("Usuario eliminado ✅", Color.FromArgb(44, 160, 44));
+                    CargarUsuarios(lista);
+                }
+                catch (Exception ex)
+                {
+                    MostrarMensaje("Error: " + ex.Message, Color.FromArgb(239, 83, 80));
+                }
+            };
+        }
+
+        private void CargarUsuarios(ListView lista)
+        {
+            lista.Items.Clear();
+            try
+            {
+                string cadena = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
+                using (var con = new SQLiteConnection(cadena))
+                {
+                    con.Open();
+                    string q = "SELECT id_usuario, nombre, rol, estado, pin_acceso FROM usuario ORDER BY id_usuario";
+                    using (var cmd = new SQLiteCommand(q, con))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var item = new ListViewItem(r["id_usuario"].ToString());
+                            item.SubItems.Add(r["nombre"].ToString());
+                            item.SubItems.Add(r["rol"].ToString());
+                            item.SubItems.Add(r["estado"].ToString() == "1" ? "Activo" : "Inactivo");
+                            item.SubItems.Add(r["pin_acceso"].ToString());
+                            lista.Items.Add(item);
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        // =====================================================
+        //  TAB 2 — CAMBIAR PIN (de cualquier usuario)
+        // =====================================================
+        private void ConstruirTabPin(TabPage tab)
+        {
+            Label lblSel = new Label();
+            lblSel.Text = "Selecciona el usuario";
+            lblSel.Font = new Font("Segoe UI", 10);
+            lblSel.ForeColor = Color.Gray;
+            lblSel.Location = new Point(30, 25);
+            lblSel.AutoSize = true;
+            tab.Controls.Add(lblSel);
+
+            ComboBox cmbUsuario = new ComboBox();
+            cmbUsuario.Size = new Size(300, 32);
+            cmbUsuario.Location = new Point(30, 45);
+            cmbUsuario.Font = new Font("Segoe UI", 11);
+            cmbUsuario.DropDownStyle = ComboBoxStyle.DropDownList;
+            tab.Controls.Add(cmbUsuario);
+
+            Button btnRefresh = new Button();
+            btnRefresh.Text = "🔄";
+            btnRefresh.Size = new Size(38, 32);
+            btnRefresh.Location = new Point(340, 45);
+            btnRefresh.FlatStyle = FlatStyle.Flat;
+            btnRefresh.FlatAppearance.BorderSize = 0;
+            btnRefresh.BackColor = Color.FromArgb(230, 230, 230);
+            btnRefresh.Cursor = Cursors.Hand;
+            btnRefresh.Font = new Font("Segoe UI", 13);
+            tab.Controls.Add(btnRefresh);
+
+            CargarComboUsuarios(cmbUsuario);
+            btnRefresh.Click += (s, e) => CargarComboUsuarios(cmbUsuario);
+
+            // PIN nuevo
             Label lblNuevo = new Label();
             lblNuevo.Text = "Nuevo PIN";
-            lblNuevo.Font = new Font("Segoe UI", 10, FontStyle.Regular);
-            lblNuevo.ForeColor = Color.FromArgb(80, 80, 80);
-            lblNuevo.Location = new Point(30, 158);
+            lblNuevo.Font = new Font("Segoe UI", 10);
+            lblNuevo.ForeColor = Color.Gray;
+            lblNuevo.Location = new Point(30, 100);
             lblNuevo.AutoSize = true;
-            card.Controls.Add(lblNuevo);
+            tab.Controls.Add(lblNuevo);
 
             TextBox txtNuevo = new TextBox();
-            txtNuevo.Size = new Size(360, 35);
-            txtNuevo.Location = new Point(30, 178);
-            txtNuevo.Font = new Font("Segoe UI", 13, FontStyle.Regular);
+            txtNuevo.Size = new Size(260, 32);
+            txtNuevo.Location = new Point(30, 120);
+            txtNuevo.Font = new Font("Segoe UI", 13);
             txtNuevo.UseSystemPasswordChar = true;
+            txtNuevo.MaxLength = 4;
             txtNuevo.BackColor = Color.FromArgb(245, 245, 245);
             txtNuevo.BorderStyle = BorderStyle.FixedSingle;
-            txtNuevo.MaxLength = 4;
-            card.Controls.Add(txtNuevo);
+            tab.Controls.Add(txtNuevo);
 
             Button btnVerNuevo = CrearBotonOjo(txtNuevo);
-            btnVerNuevo.Location = new Point(395, 178);
-            card.Controls.Add(btnVerNuevo);
+            btnVerNuevo.Location = new Point(295, 120);
+            tab.Controls.Add(btnVerNuevo);
 
-            // Indicador de seguridad
+            // Confirmar PIN
+            Label lblConfirmar = new Label();
+            lblConfirmar.Text = "Confirmar nuevo PIN";
+            lblConfirmar.Font = new Font("Segoe UI", 10);
+            lblConfirmar.ForeColor = Color.Gray;
+            lblConfirmar.Location = new Point(30, 170);
+            lblConfirmar.AutoSize = true;
+            tab.Controls.Add(lblConfirmar);
+
+            TextBox txtConfirmar = new TextBox();
+            txtConfirmar.Size = new Size(260, 32);
+            txtConfirmar.Location = new Point(30, 190);
+            txtConfirmar.Font = new Font("Segoe UI", 13);
+            txtConfirmar.UseSystemPasswordChar = true;
+            txtConfirmar.MaxLength = 4;
+            txtConfirmar.BackColor = Color.FromArgb(245, 245, 245);
+            txtConfirmar.BorderStyle = BorderStyle.FixedSingle;
+            tab.Controls.Add(txtConfirmar);
+
+            Button btnVerConfirmar = CrearBotonOjo(txtConfirmar);
+            btnVerConfirmar.Location = new Point(295, 190);
+            tab.Controls.Add(btnVerConfirmar);
+
+            // Indicador
             Label lblSeguridad = new Label();
             lblSeguridad.Font = new Font("Segoe UI", 9, FontStyle.Italic);
-            lblSeguridad.Location = new Point(30, 218);
+            lblSeguridad.Location = new Point(30, 228);
             lblSeguridad.Size = new Size(400, 22);
             lblSeguridad.ForeColor = Color.Gray;
-            card.Controls.Add(lblSeguridad);
+            tab.Controls.Add(lblSeguridad);
 
             txtNuevo.TextChanged += (s, e) =>
             {
@@ -120,93 +380,66 @@ namespace RestaurantKarin
                 else { lblSeguridad.Text = "PIN listo ✅"; lblSeguridad.ForeColor = Color.Green; }
             };
 
-            // ===== CONFIRMAR PIN =====
-            Label lblConfirmar = new Label();
-            lblConfirmar.Text = "Confirmar nuevo PIN";
-            lblConfirmar.Font = new Font("Segoe UI", 10, FontStyle.Regular);
-            lblConfirmar.ForeColor = Color.FromArgb(80, 80, 80);
-            lblConfirmar.Location = new Point(30, 248);
-            lblConfirmar.AutoSize = true;
-            card.Controls.Add(lblConfirmar);
-
-            TextBox txtConfirmar = new TextBox();
-            txtConfirmar.Size = new Size(360, 35);
-            txtConfirmar.Location = new Point(30, 268);
-            txtConfirmar.Font = new Font("Segoe UI", 13, FontStyle.Regular);
-            txtConfirmar.UseSystemPasswordChar = true;
-            txtConfirmar.BackColor = Color.FromArgb(245, 245, 245);
-            txtConfirmar.BorderStyle = BorderStyle.FixedSingle;
-            txtConfirmar.MaxLength = 4;
-            card.Controls.Add(txtConfirmar);
-
-            Button btnVerConfirmar = CrearBotonOjo(txtConfirmar);
-            btnVerConfirmar.Location = new Point(395, 268);
-            card.Controls.Add(btnVerConfirmar);
-
-            // ===== BOTONES =====
+            // Botones
             Button btnActualizar = new Button();
-            btnActualizar.Text = "Actualizar";
-            btnActualizar.Size = new Size(140, 40);
-            btnActualizar.Location = new Point(30, 330);
+            btnActualizar.Text = "Actualizar PIN";
+            btnActualizar.Size = new Size(160, 42);
+            btnActualizar.Location = new Point(30, 265);
             btnActualizar.BackColor = Color.FromArgb(29, 53, 87);
             btnActualizar.ForeColor = Color.White;
             btnActualizar.FlatStyle = FlatStyle.Flat;
             btnActualizar.FlatAppearance.BorderSize = 0;
             btnActualizar.Font = new Font("Segoe UI", 11, FontStyle.Bold);
             btnActualizar.Cursor = Cursors.Hand;
-            card.Controls.Add(btnActualizar);
+            tab.Controls.Add(btnActualizar);
 
-            Button btnCancelar = new Button();
-            btnCancelar.Text = "Cancelar";
-            btnCancelar.Size = new Size(120, 40);
-            btnCancelar.Location = new Point(185, 330);
-            btnCancelar.BackColor = Color.FromArgb(200, 200, 200);
-            btnCancelar.ForeColor = Color.FromArgb(50, 50, 50);
-            btnCancelar.FlatStyle = FlatStyle.Flat;
-            btnCancelar.FlatAppearance.BorderSize = 0;
-            btnCancelar.Font = new Font("Segoe UI", 11, FontStyle.Bold);
-            btnCancelar.Cursor = Cursors.Hand;
-            btnCancelar.Click += (s, e) =>
+            Button btnLimpiar = new Button();
+            btnLimpiar.Text = "Cancelar";
+            btnLimpiar.Size = new Size(120, 42);
+            btnLimpiar.Location = new Point(205, 265);
+            btnLimpiar.BackColor = Color.FromArgb(200, 200, 200);
+            btnLimpiar.ForeColor = Color.FromArgb(50, 50, 50);
+            btnLimpiar.FlatStyle = FlatStyle.Flat;
+            btnLimpiar.FlatAppearance.BorderSize = 0;
+            btnLimpiar.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            btnLimpiar.Cursor = Cursors.Hand;
+            btnLimpiar.Click += (s, e) =>
             {
-                txtActual.Clear();
                 txtNuevo.Clear();
                 txtConfirmar.Clear();
                 lblSeguridad.Text = "";
             };
-            card.Controls.Add(btnCancelar);
+            tab.Controls.Add(btnLimpiar);
 
-            // ===== LÓGICA ACTUALIZAR =====
+            // ===== LÓGICA =====
             btnActualizar.Click += (s, e) =>
             {
-                string actual = txtActual.Text.Trim();
+                if (cmbUsuario.SelectedItem == null)
+                {
+                    MostrarMensaje("Selecciona un usuario ❌", Color.FromArgb(239, 83, 80)); return;
+                }
+
                 string nuevo = txtNuevo.Text.Trim();
                 string confirmar = txtConfirmar.Text.Trim();
 
-                if (actual == "" || nuevo == "" || confirmar == "")
+                if (nuevo == "" || confirmar == "")
                 {
-                    MostrarMensaje("Llena todos los campos ❌", Color.FromArgb(239, 83, 80));
-                    return;
+                    MostrarMensaje("Llena todos los campos ❌", Color.FromArgb(239, 83, 80)); return;
                 }
-
                 if (nuevo != confirmar)
                 {
-                    MostrarMensaje("Los PINs no coinciden ❌", Color.FromArgb(239, 83, 80));
-                    return;
+                    MostrarMensaje("Los PINs no coinciden ❌", Color.FromArgb(239, 83, 80)); return;
                 }
-
                 if (nuevo.Length != 4)
                 {
-                    MostrarMensaje("El PIN debe tener exactamente 4 dígitos ❌", Color.FromArgb(239, 83, 80));
-                    return;
+                    MostrarMensaje("El PIN debe tener exactamente 4 dígitos ❌", Color.FromArgb(239, 83, 80)); return;
                 }
 
-                var confirmResult = MessageBox.Show(
-                    "¿Estás seguro de que deseas cambiar el PIN?",
-                    "Confirmar cambio",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
+                int idUsuario = (int)((ComboBox)tab.Controls[1]).SelectedValue;
 
-                if (confirmResult != DialogResult.Yes) return;
+                var confirm = MessageBox.Show("¿Cambiar el PIN de este usuario?", "Confirmar",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (confirm != DialogResult.Yes) return;
 
                 try
                 {
@@ -214,49 +447,58 @@ namespace RestaurantKarin
                     using (var con = new SQLiteConnection(cadena))
                     {
                         con.Open();
-
-                        // Verificar PIN actual
-                        string queryVerify = "SELECT COUNT(*) FROM usuario WHERE pin_acceso = @actual AND estado = 1";
-                        using (var cmd = new SQLiteCommand(queryVerify, con))
+                        string q = "UPDATE usuario SET pin_acceso = @pin WHERE id_usuario = @id";
+                        using (var cmd = new SQLiteCommand(q, con))
                         {
-                            cmd.Parameters.AddWithValue("@actual", actual);
-                            long existe = (long)cmd.ExecuteScalar();
-                            if (existe == 0)
-                            {
-                                MostrarMensaje("El PIN actual es incorrecto ❌", Color.FromArgb(239, 83, 80));
-                                return;
-                            }
-                        }
-
-                        // Actualizar PIN
-                        string queryUpdate = "UPDATE usuario SET pin_acceso = @nuevo WHERE pin_acceso = @actual";
-                        using (var cmd = new SQLiteCommand(queryUpdate, con))
-                        {
-                            cmd.Parameters.AddWithValue("@nuevo", nuevo);
-                            cmd.Parameters.AddWithValue("@actual", actual);
+                            cmd.Parameters.AddWithValue("@pin", nuevo);
+                            cmd.Parameters.AddWithValue("@id", idUsuario);
                             cmd.ExecuteNonQuery();
                         }
                     }
-
                     MostrarMensaje("PIN actualizado correctamente ✅", Color.FromArgb(44, 160, 44));
-                    txtActual.Clear();
                     txtNuevo.Clear();
                     txtConfirmar.Clear();
                     lblSeguridad.Text = "";
                 }
                 catch (Exception ex)
                 {
-                    MostrarMensaje("Error al actualizar: " + ex.Message, Color.FromArgb(239, 83, 80));
+                    MostrarMensaje("Error: " + ex.Message, Color.FromArgb(239, 83, 80));
                 }
             };
         }
 
-        // ===== BOTÓN OJO =====
+        private void CargarComboUsuarios(ComboBox cmb)
+        {
+            try
+            {
+                string cadena = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
+                using (var con = new SQLiteConnection(cadena))
+                {
+                    con.Open();
+                    string q = "SELECT id_usuario, nombre || ' (' || rol || ')' AS display FROM usuario WHERE estado = 1 ORDER BY nombre";
+                    using (var cmd = new SQLiteCommand(q, con))
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        var tabla = new System.Data.DataTable();
+                        tabla.Columns.Add("id_usuario", typeof(int));
+                        tabla.Columns.Add("display", typeof(string));
+                        while (r.Read())
+                            tabla.Rows.Add(r["id_usuario"], r["display"]);
+
+                        cmb.DataSource = tabla;
+                        cmb.DisplayMember = "display";
+                        cmb.ValueMember = "id_usuario";
+                    }
+                }
+            }
+            catch { }
+        }
+
         private Button CrearBotonOjo(TextBox txt)
         {
             Button btn = new Button();
             btn.Text = "👁";
-            btn.Size = new Size(38, 35);
+            btn.Size = new Size(38, 32);
             btn.FlatStyle = FlatStyle.Flat;
             btn.FlatAppearance.BorderSize = 0;
             btn.BackColor = Color.FromArgb(230, 230, 230);
@@ -270,19 +512,18 @@ namespace RestaurantKarin
             return btn;
         }
 
-        // ===== TOAST =====
         private void MostrarMensaje(string mensaje, Color color)
         {
             Form toast = new Form();
             toast.FormBorderStyle = FormBorderStyle.None;
             toast.StartPosition = FormStartPosition.Manual;
-            toast.Size = new Size(320, 55);
+            toast.Size = new Size(340, 55);
             toast.BackColor = color;
             toast.Opacity = 0.95;
             toast.TopMost = true;
             toast.ShowInTaskbar = false;
             toast.Location = new Point(
-                this.Left + this.Width - 330,
+                this.Left + this.Width - 350,
                 this.Top + this.Height - 75);
 
             Label lbl = new Label();
@@ -292,12 +533,11 @@ namespace RestaurantKarin
             lbl.Dock = DockStyle.Fill;
             lbl.TextAlign = ContentAlignment.MiddleCenter;
             toast.Controls.Add(lbl);
-
             toast.Show(this);
 
-            System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
+            var t = new System.Windows.Forms.Timer();
             t.Interval = 2800;
-            t.Tick += (s, e) => { t.Stop(); toast.Close(); };
+            t.Tick += (s, e2) => { t.Stop(); toast.Close(); };
             t.Start();
         }
     }

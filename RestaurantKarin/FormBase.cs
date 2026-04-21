@@ -102,8 +102,8 @@ namespace RestaurantKarin
             BtnToggleMenu.Size = new Size(40, 40);
             BtnToggleMenu.Location = new Point(ExpandedWidth - 45, 10);
             BtnToggleMenu.Cursor = Cursors.Hand;
-
-            BtnToggleMenu.Click += (s, e) => {
+            BtnToggleMenu.Click += (s, e) =>
+            {
                 if (!isAnimating)
                 {
                     isAnimating = true;
@@ -121,14 +121,17 @@ namespace RestaurantKarin
             menuButtons.Add(CrearBotonMenu("Recetas", "recetas.png", startY + spacing * 3));
             menuButtons.Add(CrearBotonMenu("Reportes", "reportes.png", startY + spacing * 4));
 
-            // ===== BOTÓN AJUSTES CON ACCIÓN =====
-            Button btnAjustes = CrearBotonMenu("Ajustes", "configuration.png", startY + spacing * 5);
-            btnAjustes.Click += (s, e) =>
+            // Solo Admin ve Ajustes
+            if (Sesion.EsAdmin)
             {
-                FormConfiguracion frmConfig = new FormConfiguracion();
-                frmConfig.ShowDialog();
-            };
-            menuButtons.Add(btnAjustes);
+                Button btnAjustes = CrearBotonMenu("Ajustes", "configuration.png", startY + spacing * 5);
+                btnAjustes.Click += (s, e) =>
+                {
+                    FormConfiguracion frmConfig = new FormConfiguracion();
+                    frmConfig.ShowDialog();
+                };
+                menuButtons.Add(btnAjustes);
+            }
 
             btnLogOut = CrearBotonMenu("Salir", "logout.png", 0);
             btnLogOut.Click += BtnLogOut_Click;
@@ -225,6 +228,7 @@ namespace RestaurantKarin
                                                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (confirmacion == DialogResult.Yes)
             {
+                Sesion.Cerrar();
                 FormLogin login = new FormLogin();
                 login.Show();
                 this.Hide();
