@@ -70,4 +70,14 @@
     </None>
   </ItemGroup>
 
+  <Target Name="StopRunningAppHost" BeforeTargets="PrepareForBuild" Condition="'$(OS)' == 'Windows_NT'">
+    <Message Text="Deteniendo proceso en ejecución: $(AssemblyName).exe (si existe) para evitar bloqueo de archivo." Importance="High" />
+    <!-- Intento de detener de forma forzada el proceso que bloquea el exe. ContinueOnError=true para no fallar la compilación si no existe o falla el comando. -->
+    <Exec Command="taskkill /F /IM $(AssemblyName).exe /T" ContinueOnError="true" />
+    <!-- Además intentar detener por nombre del proyecto (por si usa otro nombre de proceso) -->
+    <Exec Command="taskkill /F /IM $(MSBuildProjectName).exe /T" ContinueOnError="true" />
+    <!-- Pequeña espera para dar tiempo al SO a liberar el handle antes de copiar -->
+    <Exec Command="ping -n 2 127.0.0.1 &gt;NUL" Condition="'$(SkipKillWait)' != 'true'"/>
+  </Target>
+
 </Project>
