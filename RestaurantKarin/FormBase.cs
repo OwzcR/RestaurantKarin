@@ -31,8 +31,8 @@ namespace RestaurantKarin
 
         private void SetupUI()
         {
-            this.Text = "Pedidos";
-            this.MinimumSize = new Size(1024, 768);
+            this.Text = "Sistema de Gestión — Restaurante";
+            this.MinimumSize = new Size(1280, 850);
             this.WindowState = FormWindowState.Maximized;
             this.AutoScaleMode = AutoScaleMode.None;
 
@@ -42,6 +42,7 @@ namespace RestaurantKarin
             animacionTimer.Interval = 10;
             animacionTimer.Tick += AnimacionTimer_Tick;
 
+            // PANEL CONTENEDOR 
             PanelContenedor = new Panel();
             PanelContenedor.Dock = DockStyle.Fill;
             PanelContenedor.BackColor = Color.White;
@@ -55,12 +56,13 @@ namespace RestaurantKarin
 
             PanelContenedor.Paint += (s, e) =>
             {
-                using (SolidBrush overlayBrush = new SolidBrush(Color.FromArgb(180, 13, 41, 78)))
+                using (SolidBrush overlayBrush = new SolidBrush(Color.FromArgb(150, 13, 41, 78))) // Bajamos a 150 para que sea más claro
                 {
                     e.Graphics.FillRectangle(overlayBrush, PanelContenedor.ClientRectangle);
                 }
             };
 
+            // PANEL DE MENÚ LATERAL
             PanelMenu = new Panel();
             PanelMenu.Dock = DockStyle.Left;
             PanelMenu.Width = ExpandedWidth;
@@ -91,6 +93,7 @@ namespace RestaurantKarin
                 }
             };
 
+            // BOTÓN TOGGLE (Hamburguesa)
             BtnToggleMenu = new Button();
             BtnToggleMenu.Text = "◄";
             BtnToggleMenu.Font = new Font("Segoe UI", 14, FontStyle.Bold);
@@ -98,38 +101,44 @@ namespace RestaurantKarin
             BtnToggleMenu.BackColor = Color.Transparent;
             BtnToggleMenu.FlatStyle = FlatStyle.Flat;
             BtnToggleMenu.FlatAppearance.BorderSize = 0;
-            BtnToggleMenu.FlatAppearance.MouseOverBackColor = Color.FromArgb(50, 255, 255, 255);
             BtnToggleMenu.Size = new Size(40, 40);
             BtnToggleMenu.Location = new Point(ExpandedWidth - 45, 10);
             BtnToggleMenu.Cursor = Cursors.Hand;
-            BtnToggleMenu.Click += (s, e) =>
-            {
-                if (!isAnimating)
-                {
-                    isAnimating = true;
-                    animacionTimer.Start();
-                }
-            };
+            BtnToggleMenu.Click += (s, e) => { if (!isAnimating) { isAnimating = true; animacionTimer.Start(); } };
             PanelMenu.Controls.Add(BtnToggleMenu);
 
+            // CREACIÓN DE BOTONES
             int startY = 80;
             int spacing = 65;
 
             menuButtons.Add(CrearBotonMenu("Pedidos", "pedidos.png", startY));
             menuButtons.Add(CrearBotonMenu("Cuentas", "cuentas.png", startY + spacing));
-            menuButtons.Add(CrearBotonMenu("Inventario", "inventario.png", startY + spacing * 2));
-            // Módulo Recetas: pantallas embebidas en el panel principal (no afecta otras rutas del menú).
+
+            // Inventario (compañero): formulario embebido en el panel de contenido.
+            Button btnInv = CrearBotonMenu("Inventario", "inventario.png", startY + spacing * 2);
+            btnInv.Click += (s, e) =>
+            {
+                PanelContenedor.Controls.Clear();
+                FormInventario frm = new FormInventario();
+                frm.TopLevel = false;
+                frm.Dock = DockStyle.Fill;
+                PanelContenedor.Controls.Add(frm);
+                frm.Show();
+            };
+            menuButtons.Add(btnInv);
+
+            // Recetas (tú): UserControl PantallaRecetas en el mismo panel.
             Button btnRecetas = CrearBotonMenu("Recetas", "recetas.png", startY + spacing * 3);
             btnRecetas.Click += (_, _) => CargarModuloRecetas();
             menuButtons.Add(btnRecetas);
+
             menuButtons.Add(CrearBotonMenu("Reportes", "reportes.png", startY + spacing * 4));
 
-            // Solo Admin ve Ajustes
+            // SOLO ADMIN VE AJUSTES (Ventana Emergente)
             if (Sesion.EsAdmin)
             {
                 Button btnAjustes = CrearBotonMenu("Ajustes", "configuration.png", startY + spacing * 5);
-                btnAjustes.Click += (s, e) =>
-                {
+                btnAjustes.Click += (s, e) => {
                     FormConfiguracion frmConfig = new FormConfiguracion();
                     frmConfig.ShowDialog();
                 };
@@ -179,48 +188,24 @@ namespace RestaurantKarin
                 if (PanelMenu.Width == ExpandedWidth)
                 {
                     BtnToggleMenu.Text = "►";
-                    foreach (var btn in menuButtons)
-                    {
-                        btn.Text = "";
-                        btn.ImageAlign = ContentAlignment.MiddleCenter;
-                        btn.Padding = new Padding(0);
-                    }
+                    foreach (var btn in menuButtons) { btn.Text = ""; btn.ImageAlign = ContentAlignment.MiddleCenter; btn.Padding = new Padding(0); }
                 }
-
                 PanelMenu.Width -= AnimationSpeed;
                 BtnToggleMenu.Location = new Point((PanelMenu.Width - 40) / 2, 10);
-
-                if (PanelMenu.Width <= CollapsedWidth)
-                {
-                    PanelMenu.Width = CollapsedWidth;
-                    isMenuExpanded = false;
-                    isAnimating = false;
-                    animacionTimer.Stop();
-                }
+                if (PanelMenu.Width <= CollapsedWidth) { PanelMenu.Width = CollapsedWidth; isMenuExpanded = false; isAnimating = false; animacionTimer.Stop(); }
             }
             else
             {
                 PanelMenu.Width += AnimationSpeed;
-
                 int nuevaPosX = PanelMenu.Width - 45;
                 BtnToggleMenu.Location = new Point(nuevaPosX > 0 ? nuevaPosX : 0, 10);
-
                 if (PanelMenu.Width >= ExpandedWidth)
                 {
                     PanelMenu.Width = ExpandedWidth;
                     BtnToggleMenu.Text = "◄";
                     BtnToggleMenu.Location = new Point(ExpandedWidth - 45, 10);
-
-                    foreach (var btn in menuButtons)
-                    {
-                        btn.Text = "   " + btn.Tag.ToString();
-                        btn.ImageAlign = ContentAlignment.MiddleLeft;
-                        btn.Padding = new Padding(15, 0, 0, 0);
-                    }
-
-                    isMenuExpanded = true;
-                    isAnimating = false;
-                    animacionTimer.Stop();
+                    foreach (var btn in menuButtons) { btn.Text = "   " + btn.Tag.ToString(); btn.ImageAlign = ContentAlignment.MiddleLeft; btn.Padding = new Padding(15, 0, 0, 0); }
+                    isMenuExpanded = true; isAnimating = false; animacionTimer.Stop();
                 }
             }
         }
@@ -241,15 +226,8 @@ namespace RestaurantKarin
 
         private void BtnLogOut_Click(object sender, EventArgs e)
         {
-            var confirmacion = MessageBox.Show("¿Estás seguro de que deseas cerrar sesión?", "Cerrar Sesión",
-                                               MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            if (confirmacion == DialogResult.Yes)
-            {
-                Sesion.Cerrar();
-                FormLogin login = new FormLogin();
-                login.Show();
-                this.Hide();
-            }
+            var confirmacion = MessageBox.Show("¿Estás seguro de que deseas cerrar sesión?", "Cerrar Sesión", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (confirmacion == DialogResult.Yes) { Sesion.Cerrar(); FormLogin login = new FormLogin(); login.Show(); this.Hide(); }
         }
     }
 }
