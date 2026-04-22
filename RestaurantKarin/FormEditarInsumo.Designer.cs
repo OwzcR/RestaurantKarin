@@ -1,6 +1,6 @@
 ﻿namespace RestaurantKarin
 {
-    partial class FormInventario
+    partial class FormEditarInsumo
     {
         /// <summary>
         /// Required designer variable.
