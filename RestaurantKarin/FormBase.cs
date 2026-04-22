@@ -112,7 +112,20 @@ namespace RestaurantKarin
             int spacing = 65;
 
             menuButtons.Add(CrearBotonMenu("Pedidos", "pedidos.png", startY));
-            menuButtons.Add(CrearBotonMenu("Cuentas", "cuentas.png", startY + spacing));
+
+Button btnCuentas = CrearBotonMenu("Cuentas", "cuentas.png", startY + spacing);
+btnCuentas.Click += (s, e) =>
+{
+    PanelContenedor.Controls.Clear();
+    FormCuentas frm = new FormCuentas();
+    frm.TopLevel = false;
+    frm.FormBorderStyle = FormBorderStyle.None;
+    frm.Dock = DockStyle.Fill;
+    PanelContenedor.Controls.Add(frm);
+    frm.Show();
+};
+menuButtons.Add(btnCuentas);
+
 
             // Inventario (compañero): formulario embebido en el panel de contenido.
             Button btnInv = CrearBotonMenu("Inventario", "inventario.png", startY + spacing * 2);
