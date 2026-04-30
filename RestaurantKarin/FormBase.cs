@@ -162,16 +162,13 @@ namespace RestaurantKarin
             };
             menuButtons.Add(btnReportes);
 
-            // SOLO ADMIN VE AJUSTES (Configuración integrada en panel)
+            // SOLO ADMIN VE AJUSTES (Ventana Emergente)
             if (Sesion.EsAdmin)
             {
                 Button btnAjustes = CrearBotonMenu("Ajustes", "configuration.png", startY + spacing * 5);
-                btnAjustes.Click += (s, e) => 
-                {
-                    PanelContenedor.Controls.Clear();
-                    ConfiguracionPanel config = new ConfiguracionPanel();
-                    config.Dock = System.Windows.Forms.DockStyle.Fill;
-                    PanelContenedor.Controls.Add(config);
+                btnAjustes.Click += (s, e) => {
+                    FormConfiguracion frmConfig = new FormConfiguracion();
+                    frmConfig.ShowDialog();
                 };
                 menuButtons.Add(btnAjustes);
             }
