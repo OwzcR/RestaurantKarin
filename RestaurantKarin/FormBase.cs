@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
-using System.Reflection; 
+using System.Reflection;
 using System.Windows.Forms;
 
 namespace RestaurantKarin
 {
-    public  class Base : Form
+    public class Base : Form
     {
         private Panel PanelMenu;
         private Panel PanelContenedor;
@@ -104,14 +104,7 @@ namespace RestaurantKarin
             BtnToggleMenu.Size = new Size(40, 40);
             BtnToggleMenu.Location = new Point(ExpandedWidth - 45, 10);
             BtnToggleMenu.Cursor = Cursors.Hand;
-            BtnToggleMenu.Click += (s, e) => 
-            {
-                if (!isAnimating)
-                {
-                    isAnimating = true;
-                    animacionTimer.Start();
-                }
-            };
+            BtnToggleMenu.Click += (s, e) => { if (!isAnimating) { isAnimating = true; animacionTimer.Start(); } };
             PanelMenu.Controls.Add(BtnToggleMenu);
 
             // CREACIÓN DE BOTONES
@@ -120,18 +113,19 @@ namespace RestaurantKarin
 
             menuButtons.Add(CrearBotonMenu("Pedidos", "pedidos.png", startY));
 
-            Button btnCuentas = CrearBotonMenu("Cuentas", "cuentas.png", startY + spacing);
-            btnCuentas.Click += (s, e) =>
-            {
-                PanelContenedor.Controls.Clear();
-                FormCuentas frm = new FormCuentas();
-                frm.TopLevel = false;
-                frm.FormBorderStyle = FormBorderStyle.None;
-                frm.Dock = DockStyle.Fill;
-                PanelContenedor.Controls.Add(frm);
-                frm.Show();
-            };
-            menuButtons.Add(btnCuentas);
+Button btnCuentas = CrearBotonMenu("Cuentas", "cuentas.png", startY + spacing);
+btnCuentas.Click += (s, e) =>
+{
+    PanelContenedor.Controls.Clear();
+    FormCuentas frm = new FormCuentas();
+    frm.TopLevel = false;
+    frm.FormBorderStyle = FormBorderStyle.None;
+    frm.Dock = DockStyle.Fill;
+    PanelContenedor.Controls.Add(frm);
+    frm.Show();
+};
+menuButtons.Add(btnCuentas);
+
 
             // Inventario (compañero): formulario embebido en el panel de contenido.
             Button btnInv = CrearBotonMenu("Inventario", "inventario.png", startY + spacing * 2);
@@ -146,21 +140,12 @@ namespace RestaurantKarin
             };
             menuButtons.Add(btnInv);
 
-            // Recetas (compañero): UserControl PantallaRecetas en el mismo panel.
+            // Recetas (tú): UserControl PantallaRecetas en el mismo panel.
             Button btnRecetas = CrearBotonMenu("Recetas", "recetas.png", startY + spacing * 3);
             btnRecetas.Click += (_, _) => CargarModuloRecetas();
             menuButtons.Add(btnRecetas);
 
-            // Reportes (tu código): carga FormReporte como UserControl
-            Button btnReportes = CrearBotonMenu("Reportes", "reportes.png", startY + spacing * 4);
-            btnReportes.Click += (s, e) => 
-            {
-                PanelContenedor.Controls.Clear();
-                FormReporte reporte = new FormReporte();
-                reporte.Dock = System.Windows.Forms.DockStyle.Fill;
-                PanelContenedor.Controls.Add(reporte);
-            };
-            menuButtons.Add(btnReportes);
+            menuButtons.Add(CrearBotonMenu("Reportes", "reportes.png", startY + spacing * 4));
 
             // SOLO ADMIN VE AJUSTES (Ventana Emergente)
             if (Sesion.EsAdmin)
