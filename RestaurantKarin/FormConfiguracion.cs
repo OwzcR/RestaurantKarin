@@ -12,447 +12,363 @@ namespace RestaurantKarin
 {
     public partial class FormConfiguracion : Form
     {
-        private readonly Color Azul1 = Color.FromArgb(13, 41, 78);
-        private readonly Color Azul2 = Color.FromArgb(29, 53, 87);
-        private readonly Color Aqua = Color.FromArgb(64, 196, 204);
-        private readonly Color Fondo = Color.FromArgb(236, 241, 247);
-        private readonly Color Blanco = Color.White;
-        private readonly Color GrisBorde = Color.FromArgb(210, 218, 230);
-        private readonly Color GrisTexto = Color.FromArgb(110, 125, 145);
-        private readonly Color Rojo = Color.FromArgb(220, 70, 70);
-        private readonly Color Verde = Color.FromArgb(39, 174, 96);
-        private readonly Color AzulHov = Color.FromArgb(42, 72, 110);
-        private readonly Color Morado = Color.FromArgb(108, 92, 172);
-        private readonly Color MoradoHov = Color.FromArgb(80, 68, 140);
+        // ── Paleta reducida ──
+        private readonly Color C_BG = Color.FromArgb(248, 249, 251);
+        private readonly Color C_SURFACE = Color.White;
+        private readonly Color C_BORDER = Color.FromArgb(226, 232, 240);
+        private readonly Color C_TEXT1 = Color.FromArgb(15, 23, 42);
+        private readonly Color C_TEXT2 = Color.FromArgb(100, 116, 139);
+        private readonly Color C_BRAND = Color.FromArgb(29, 78, 137);
+        private readonly Color C_ACCENT = Color.FromArgb(64, 196, 204);
+        private readonly Color C_PRIMARY = Color.FromArgb(37, 99, 235);
+        private readonly Color C_DANGER = Color.FromArgb(220, 38, 38);
+        private readonly Color C_SUCCESS = Color.FromArgb(22, 163, 74);
 
         private readonly string[] MODULOS = { "Pedidos", "Cuentas", "Inventario", "Recetas", "Reportes" };
 
-        private Panel panelContenido;
-        private Button btnNavActivo;
+        private Panel _content;
+        private Button _activeNav;
 
         public FormConfiguracion()
         {
             InitializeComponent();
-            SetupUI();
+            BuildShell();
         }
 
-        // ══════════════════════════════════════════════════════
-        //  SETUP PRINCIPAL
-        // ══════════════════════════════════════════════════════
-        private void SetupUI()
+        // ════════════════════════════════════════════════════════
+        //  SHELL
+        // ════════════════════════════════════════════════════════
+        private void BuildShell()
         {
-            this.Text = "Ajustes";
-            this.Size = new Size(1060, 700);
+            this.Text = "Configuración";
+            this.Size = new Size(1080, 720);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.None;
-            this.BackColor = Fondo;
+            this.BackColor = C_BG;
             this.Region = System.Drawing.Region.FromHrgn(
-                CreateRoundRectRgn(0, 0, this.Width, this.Height, 14, 14));
+                CreateRoundRectRgn(0, 0, Width, Height, 12, 12));
 
-            // ── SIDEBAR ──
-            Panel sidebar = new Panel();
-            sidebar.Size = new Size(220, 700);
-            sidebar.Location = new Point(0, 0);
-            SetDB(sidebar);
-            sidebar.Paint += (s, e) =>
+            // ── Sidebar ──────────────────────────────────────
+            Panel sb = new Panel();
+            sb.Size = new Size(230, 720); sb.Location = Point.Empty;
+            DoubleBufferPanel(sb);
+            sb.Paint += (s, e) =>
             {
-                using (var br = new LinearGradientBrush(sidebar.ClientRectangle, Aqua, Azul1, 90F))
-                    e.Graphics.FillRectangle(br, sidebar.ClientRectangle);
+                using (var br = new LinearGradientBrush(sb.ClientRectangle, C_ACCENT, C_BRAND, 90F))
+                    e.Graphics.FillRectangle(br, sb.ClientRectangle);
             };
-            this.Controls.Add(sidebar);
+            this.Controls.Add(sb);
 
-            // Ícono
-            PictureBox pic = new PictureBox();
-            pic.Size = new Size(64, 64); pic.Location = new Point(78, 26);
-            pic.SizeMode = PictureBoxSizeMode.Zoom; pic.BackColor = Color.Transparent;
-            try { pic.Image = Image.FromFile(Path.Combine(Application.StartupPath, "Imgs", "icono.ico")); } catch { }
-            sidebar.Controls.Add(pic);
+            // Icono
+            PictureBox ico = new PictureBox();
+            ico.Size = new Size(48, 48); ico.Location = new Point(91, 32);
+            ico.SizeMode = PictureBoxSizeMode.Zoom; ico.BackColor = Color.Transparent;
+            try { ico.Image = Image.FromFile(Path.Combine(Application.StartupPath, "Imgs", "icono.ico")); } catch { }
+            sb.Controls.Add(ico);
 
-            // Título
-            Label lST = new Label();
-            lST.Text = "AJUSTES"; lST.Font = new Font("Segoe UI", 13, FontStyle.Bold);
-            lST.ForeColor = Color.White; lST.Size = new Size(220, 26);
-            lST.Location = new Point(0, 98); lST.TextAlign = ContentAlignment.MiddleCenter;
-            sidebar.Controls.Add(lST);
+            // App name
+            sb.Controls.Add(MkLbl("CONFIGURACIÓN", new Font("Segoe UI", 10, FontStyle.Bold),
+                Color.White, 0, 88, 230, 22, ContentAlignment.MiddleCenter));
 
-            // Admin badge
-            Panel badge = new Panel();
-            badge.Size = new Size(180, 28); badge.Location = new Point(20, 128);
-            badge.BackColor = Color.FromArgb(40, 255, 255, 255);
-            badge.Paint += (s, e) =>
-            {
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                using (var path = RoundPath(badge.ClientRectangle, 14))
-                using (var br = new SolidBrush(Color.FromArgb(40, 255, 255, 255)))
-                    e.Graphics.FillPath(br, path);
-            };
-            sidebar.Controls.Add(badge);
+            // User chip
+            sb.Controls.Add(MkLbl("● " + Sesion.Nombre, new Font("Segoe UI", 8, FontStyle.Bold),
+                Color.FromArgb(200, 235, 245), 0, 116, 230, 22, ContentAlignment.MiddleCenter));
 
-            Label lAdm = new Label();
-            lAdm.Text = "⭐ " + Sesion.Nombre; lAdm.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-            lAdm.ForeColor = Color.White; lAdm.Dock = DockStyle.Fill;
-            lAdm.TextAlign = ContentAlignment.MiddleCenter; badge.Controls.Add(lAdm);
+            sb.Controls.Add(MkHRule(20, 152, 190, Color.FromArgb(50, 255, 255, 255)));
+            sb.Controls.Add(MkLbl("MENÚ", new Font("Segoe UI", 7, FontStyle.Bold),
+                Color.FromArgb(160, 220, 235), 0, 164, 230, 18, ContentAlignment.MiddleCenter));
 
-            SSep(sidebar, 170); SLabel(sidebar, "NAVEGACIÓN", 180);
+            Button nU = MkNavBtn("Usuarios", 190, sb);
+            Button nP = MkNavBtn("Cambiar PIN", 238, sb);
 
-            Button btnU = NavBtn("👥   Usuarios", 206, sidebar);
-            Button btnP = NavBtn("🔑   Cambiar PIN", 254, sidebar);
-            SSep(sidebar, 590);
+            sb.Controls.Add(MkHRule(20, 632, 190, Color.FromArgb(50, 255, 255, 255)));
 
-            Button btnX = new Button();
-            btnX.Text = "✕   Cerrar"; btnX.Size = new Size(180, 44); btnX.Location = new Point(20, 600);
-            btnX.FlatStyle = FlatStyle.Flat; btnX.FlatAppearance.BorderSize = 0;
-            btnX.FlatAppearance.MouseOverBackColor = Color.FromArgb(50, Rojo);
-            btnX.BackColor = Color.Transparent; btnX.ForeColor = Color.FromArgb(200, 210, 220);
-            btnX.Font = new Font("Segoe UI", 10); btnX.TextAlign = ContentAlignment.MiddleLeft;
-            btnX.Padding = new Padding(10, 0, 0, 0); btnX.Cursor = Cursors.Hand;
+            Button btnX = MkFlatBtn("Cerrar", new Font("Segoe UI", 9),
+                Color.FromArgb(180, 210, 220), Color.Transparent, 20, 642, 190, 42, sb);
+            btnX.TextAlign = ContentAlignment.MiddleLeft;
+            btnX.Padding = new Padding(10, 0, 0, 0);
+            btnX.FlatAppearance.MouseOverBackColor = Color.FromArgb(40, C_DANGER);
             btnX.Click += (s, e) => this.Close();
-            sidebar.Controls.Add(btnX);
 
-            // ── BARRA TÍTULO ──
-            Panel tb = new Panel();
-            tb.Size = new Size(840, 52); tb.Location = new Point(220, 0);
-            tb.BackColor = Blanco; this.Controls.Add(tb); tb.BringToFront();
+            // ── Topbar ───────────────────────────────────────
+            Panel top = new Panel();
+            top.Size = new Size(850, 52); top.Location = new Point(230, 0);
+            top.BackColor = C_SURFACE;
+            this.Controls.Add(top); top.BringToFront();
 
-            Label lTitle = new Label();
-            lTitle.Text = "Panel de Administración";
-            lTitle.Font = new Font("Segoe UI", 13, FontStyle.Bold);
-            lTitle.ForeColor = Azul1; lTitle.Location = new Point(24, 0);
-            lTitle.Size = new Size(600, 52); lTitle.TextAlign = ContentAlignment.MiddleLeft;
-            tb.Controls.Add(lTitle);
+            top.Controls.Add(MkLbl("Panel de administración",
+                new Font("Segoe UI", 12, FontStyle.Bold), C_TEXT1,
+                24, 0, 500, 52, ContentAlignment.MiddleLeft));
 
-            // Rol badge en título
-            Label lRol = new Label();
-            lRol.Text = "Admin"; lRol.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-            lRol.ForeColor = Blanco; lRol.BackColor = Azul2;
-            lRol.Size = new Size(60, 26); lRol.Location = new Point(740, 13);
-            lRol.TextAlign = ContentAlignment.MiddleCenter; tb.Controls.Add(lRol);
-
-            Panel tl = new Panel();
-            tl.Size = new Size(840, 2); tl.Location = new Point(220, 52);
-            tl.BackColor = GrisBorde; this.Controls.Add(tl); tl.BringToFront();
+            top.Paint += (s, e) =>
+                e.Graphics.DrawLine(new Pen(C_BORDER), 0, 51, 850, 51);
 
             // Arrastre
             bool drag = false; Point dp = Point.Empty;
-            tb.MouseDown += (s, e) => { drag = true; dp = e.Location; };
-            tb.MouseMove += (s, e) => { if (drag) this.Location = new Point(this.Location.X + e.X - dp.X, this.Location.Y + e.Y - dp.Y); };
-            tb.MouseUp += (s, e) => drag = false;
+            top.MouseDown += (s, e) => { drag = true; dp = e.Location; };
+            top.MouseMove += (s, e) =>
+            {
+                if (drag) this.Location = new Point(
+                    this.Location.X + e.X - dp.X, this.Location.Y + e.Y - dp.Y);
+            };
+            top.MouseUp += (s, e) => drag = false;
 
-            // ── CONTENIDO ──
-            panelContenido = new Panel();
-            panelContenido.Size = new Size(840, 646); panelContenido.Location = new Point(220, 54);
-            panelContenido.BackColor = Fondo;
-            this.Controls.Add(panelContenido);
+            // ── Área contenido ───────────────────────────────
+            _content = new Panel();
+            _content.Size = new Size(850, 668); _content.Location = new Point(230, 52);
+            _content.BackColor = C_BG;
+            this.Controls.Add(_content);
 
-            btnU.Click += (s, e) => { ActivarNav(btnU); MostrarSeccion(SeccionUsuarios()); };
-            btnP.Click += (s, e) => { ActivarNav(btnP); MostrarSeccion(SeccionPin()); };
+            nU.Click += (s, e) => { ActivarNav(nU); CargarSeccion(PageUsuarios()); };
+            nP.Click += (s, e) => { ActivarNav(nP); CargarSeccion(PagePin()); };
 
-            ActivarNav(btnU);
-            MostrarSeccion(SeccionUsuarios());
+            ActivarNav(nU);
+            CargarSeccion(PageUsuarios());
         }
 
-        // ══════════════════════════════════════════════════════
-        //  SECCIÓN: USUARIOS
-        // ══════════════════════════════════════════════════════
-        private Panel SeccionUsuarios()
+        // ════════════════════════════════════════════════════════
+        //  PÁGINA: USUARIOS
+        // ════════════════════════════════════════════════════════
+        private Panel PageUsuarios()
         {
-            Panel panel = new Panel(); panel.BackColor = Fondo;
+            Panel page = new Panel(); page.BackColor = C_BG;
 
-            Encabezado(panel, "👥  Gestión de Usuarios",
-                "Agrega, consulta, edita permisos y elimina accesos al sistema");
+            PageHeader(page, "Usuarios", "Administra los accesos al sistema");
 
-            // ── Tarjeta tabla (Y=82) ──
-            Panel ct = Tarjeta(22, 82, 796, 210); panel.Controls.Add(ct);
-            CardHeader(ct, "📋  Usuarios registrados");
+            // ── Tarjeta tabla ─────────────────────────────────
+            Panel cT = MkCard(24, 86, 800, 210, page);
+            SecLabel("Usuarios registrados", cT, 20, 16);
 
-            ListView lista = new ListView();
-            lista.Size = new Size(764, 158); lista.Location = new Point(16, 44);
-            lista.View = View.Details; lista.FullRowSelect = true;
-            lista.GridLines = false; lista.BorderStyle = BorderStyle.None;
-            lista.Font = new Font("Segoe UI", 10); lista.BackColor = Blanco;
-            lista.OwnerDraw = true;
-            lista.Columns.Add("ID", 40);
-            lista.Columns.Add("Nombre", 170);
-            lista.Columns.Add("Rol", 100);
-            lista.Columns.Add("Estado", 90);
-            lista.Columns.Add("PIN", 75);
-            lista.Columns.Add("Pantallas permitidas", 255);
+            ListView lv = MkListView(cT, 20, 44, 760, 152);
+            lv.Columns.Add("", 28);
+            lv.Columns.Add("Nombre", 178);
+            lv.Columns.Add("Rol", 90);
+            lv.Columns.Add("Estado", 78);
+            lv.Columns.Add("PIN", 65);
+            lv.Columns.Add("Pantallas permitidas", 279);
+            LoadUsers(lv);
 
-            lista.DrawColumnHeader += (s, e) =>
+            // ── Tarjeta agregar ───────────────────────────────
+            Panel cA = MkCard(24, 310, 800, 188, page);
+            SecLabel("Agregar usuario", cA, 20, 16);
+
+            FldLabel("Nombre", cA, 20, 50);
+            TextBox tNom = MkInput(cA, 20, 68, 224);
+
+            FldLabel("Rol", cA, 260, 50);
+            ComboBox cRol = MkCombo(cA, 260, 68, 148);
+            cRol.Items.AddRange(new object[] { "Mesero", "Admin" });
+            cRol.SelectedIndex = 0;
+
+            FldLabel("PIN", cA, 424, 50);
+            TextBox tPin = MkInput(cA, 424, 68, 112, true); tPin.MaxLength = 4;
+
+            FldLabel("Pantallas permitidas", cA, 20, 112);
+            Dictionary<string, CheckBox> cks = MkPermChecks(cA, 20, 130);
+
+            cRol.SelectedIndexChanged += (s, e) =>
             {
-                e.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(238, 244, 251)), e.Bounds);
-                e.Graphics.DrawLine(new Pen(GrisBorde), e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
-                using (var sf = new StringFormat { LineAlignment = StringAlignment.Center })
-                    e.Graphics.DrawString(e.Header.Text, new Font("Segoe UI", 9, FontStyle.Bold),
-                        new SolidBrush(Azul2), new RectangleF(e.Bounds.X + 6, e.Bounds.Y, e.Bounds.Width, e.Bounds.Height), sf);
-            };
-            lista.DrawItem += (s, e) => e.DrawDefault = true;
-            lista.DrawSubItem += (s, e) =>
-            {
-                Color bg = e.ItemIndex % 2 == 0 ? Blanco : Color.FromArgb(247, 250, 254);
-                if (e.Item.Selected) bg = Color.FromArgb(214, 230, 255);
-                e.Graphics.FillRectangle(new SolidBrush(bg), e.Bounds);
-                e.Graphics.DrawLine(new Pen(Color.FromArgb(235, 240, 248)),
-                    e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
-                using (var sf = new StringFormat { LineAlignment = StringAlignment.Center })
-                    e.Graphics.DrawString(e.SubItem.Text, new Font("Segoe UI", 10), new SolidBrush(Azul1),
-                        new RectangleF(e.Bounds.X + 6, e.Bounds.Y, e.Bounds.Width - 6, e.Bounds.Height), sf);
-            };
-            ct.Controls.Add(lista);
-            CargarUsuarios(lista);
-
-            // ── Tarjeta AGREGAR (Y=305) ──
-            Panel ca = Tarjeta(22, 305, 796, 170); panel.Controls.Add(ca);
-            CardHeader(ca, "➕  Agregar nuevo usuario");
-
-            MkLabel("Nombre completo", ca, 16, 52);
-            TextBox txtNombre = MkBox(ca, 16, 70, 230, false);
-
-            MkLabel("Rol", ca, 260, 52);
-            ComboBox cmbRol = new ComboBox();
-            cmbRol.Size = new Size(140, 34); cmbRol.Location = new Point(260, 70);
-            cmbRol.Font = new Font("Segoe UI", 11); cmbRol.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmbRol.BackColor = Fondo; cmbRol.FlatStyle = FlatStyle.Flat;
-            cmbRol.Items.AddRange(new string[] { "Mesero", "Admin" }); cmbRol.SelectedIndex = 0;
-            ca.Controls.Add(cmbRol);
-
-            MkLabel("PIN (4 dígitos)", ca, 414, 52);
-            TextBox txtPin = MkBox(ca, 414, 70, 120, true); txtPin.MaxLength = 4;
-
-            MkLabel("Pantallas permitidas", ca, 16, 116);
-
-            var checks = new Dictionary<string, CheckBox>();
-            int cx = 16;
-            foreach (string mod in MODULOS)
-            {
-                CheckBox cb = new CheckBox();
-                cb.Text = mod; cb.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-                cb.ForeColor = Azul1; cb.Size = new Size(120, 26);
-                cb.Location = new Point(cx, 134); cb.Checked = true;
-                cb.FlatStyle = FlatStyle.Flat;
-                ca.Controls.Add(cb); checks[mod] = cb; cx += 126;
-            }
-
-            cmbRol.SelectedIndexChanged += (s, e) =>
-            {
-                bool isAdmin = cmbRol.SelectedItem.ToString() == "Admin";
-                foreach (var cb in checks.Values) { cb.Checked = true; cb.Enabled = !isAdmin; }
+                bool adm = cRol.SelectedItem.ToString() == "Admin";
+                foreach (var cb in cks.Values) { cb.Checked = true; cb.Enabled = !adm; }
             };
 
-            Button btnAgregar = BtnAcc("➕  Agregar", Azul2, ca, 560, 116, 212, 44);
-            HoverBtn(btnAgregar, AzulHov, Azul2);
-
-            btnAgregar.Click += (s, e) =>
+            Button btnAdd = MkPrimary("Agregar", cA, 660, 66, 120, 38);
+            btnAdd.Click += (s, e) =>
             {
-                string nom = txtNombre.Text.Trim(), rol = cmbRol.SelectedItem.ToString(), pin = txtPin.Text.Trim();
-                if (nom == "" || pin == "") { Toast("Llena nombre y PIN ❌", Rojo); return; }
-                if (pin.Length != 4) { Toast("El PIN debe tener exactamente 4 dígitos ❌", Rojo); return; }
-                string perms = rol == "Admin" ? string.Join(",", MODULOS) : ObtenerPermisos(checks);
+                string nom = tNom.Text.Trim(), rol = cRol.SelectedItem.ToString(), pin = tPin.Text.Trim();
+                if (nom == "" || pin == "") { Toast("Completa nombre y PIN", false); return; }
+                if (pin.Length != 4) { Toast("El PIN debe tener 4 dígitos", false); return; }
+                string perms = rol == "Admin" ? string.Join(",", MODULOS) : GetPerms(cks);
                 try
                 {
                     using (var con = Conn())
                     {
                         con.Open();
-                        using (var cmd = new SQLiteCommand("INSERT INTO usuario (nombre,rol,pin_acceso,permisos) VALUES (@n,@r,@p,@pe)", con))
+                        using (var cmd = new SQLiteCommand(
+                            "INSERT INTO usuario (nombre,rol,pin_acceso,permisos) VALUES (@n,@r,@p,@pe)", con))
                         {
-                            cmd.Parameters.AddWithValue("@n", nom); cmd.Parameters.AddWithValue("@r", rol);
-                            cmd.Parameters.AddWithValue("@p", pin); cmd.Parameters.AddWithValue("@pe", perms);
+                            cmd.Parameters.AddWithValue("@n", nom);
+                            cmd.Parameters.AddWithValue("@r", rol);
+                            cmd.Parameters.AddWithValue("@p", pin);
+                            cmd.Parameters.AddWithValue("@pe", perms);
                             cmd.ExecuteNonQuery();
                         }
                     }
-                    Toast("Usuario agregado correctamente ✅", Verde);
-                    txtNombre.Clear(); txtPin.Clear(); CargarUsuarios(lista);
+                    Toast("Usuario agregado", true);
+                    tNom.Clear(); tPin.Clear(); LoadUsers(lv);
                 }
-                catch (Exception ex) { Toast("Error: " + ex.Message, Rojo); }
+                catch (Exception ex) { Toast("Error: " + ex.Message, false); }
             };
 
-            // ── Tarjeta EDITAR PERMISOS (Y=488) ──
-            Panel ce = Tarjeta(22, 488, 796, 148); panel.Controls.Add(ce);
-            CardHeader(ce, "🛡  Editar permisos del usuario seleccionado");
+            // ── Tarjeta editar permisos ───────────────────────
+            Panel cE = MkCard(24, 512, 800, 142, page);
+            SecLabel("Permisos del usuario seleccionado", cE, 20, 16);
 
-            MkLabel("Pantallas a habilitar", ce, 16, 50);
+            FldLabel("Pantallas habilitadas", cE, 20, 50);
+            Dictionary<string, CheckBox> cksE = MkPermChecks(cE, 20, 68);
 
-            var checksEdit = new Dictionary<string, CheckBox>();
-            int ex2 = 16;
-            foreach (string mod in MODULOS)
+            lv.SelectedIndexChanged += (s, e) =>
             {
-                CheckBox cb = new CheckBox();
-                cb.Text = mod; cb.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-                cb.ForeColor = Azul1; cb.Size = new Size(120, 26);
-                cb.Location = new Point(ex2, 70); cb.FlatStyle = FlatStyle.Flat;
-                ce.Controls.Add(cb); checksEdit[mod] = cb; ex2 += 126;
-            }
-
-            // Al seleccionar usuario de la tabla, cargar sus permisos
-            lista.SelectedIndexChanged += (s, e) =>
-            {
-                if (lista.SelectedItems.Count == 0) return;
-                string perms = lista.SelectedItems[0].SubItems[5].Text;
-                string rolSel = lista.SelectedItems[0].SubItems[2].Text;
-                foreach (var mod in MODULOS)
+                if (lv.SelectedItems.Count == 0) return;
+                string perm = lv.SelectedItems[0].SubItems[5].Text;
+                string rol2 = lv.SelectedItems[0].SubItems[2].Text;
+                foreach (string m in MODULOS)
                 {
-                    checksEdit[mod].Checked = perms.Contains(mod);
-                    checksEdit[mod].Enabled = rolSel != "Admin";
+                    cksE[m].Checked = perm.Contains(m);
+                    cksE[m].Enabled = rol2 != "Admin";
                 }
             };
 
-            Button btnGuardarPerm = BtnAcc("🛡  Guardar Permisos", Morado, ce, 560, 52, 212, 44);
-            Button btnEliminar = BtnAcc("🗑  Eliminar Usuario", Rojo, ce, 560, 102, 212, 38);
-            HoverBtn(btnGuardarPerm, MoradoHov, Morado);
-            HoverBtn(btnEliminar, Color.FromArgb(180, 50, 50), Rojo);
+            Button btnPerm = MkSecondary("Guardar permisos", cE, 530, 60, 168, 38);
+            Button btnDel = MkDanger("Eliminar", cE, 710, 60, 102, 38);
 
-            btnGuardarPerm.Click += (s, e) =>
+            btnPerm.Click += (s, e) =>
             {
-                if (lista.SelectedItems.Count == 0) { Toast("Selecciona un usuario de la lista ❌", Rojo); return; }
-                string rolSel = lista.SelectedItems[0].SubItems[2].Text;
-                string perms = rolSel == "Admin" ? string.Join(",", MODULOS) : ObtenerPermisos(checksEdit);
-                int id = int.Parse(lista.SelectedItems[0].SubItems[0].Text);
+                if (lv.SelectedItems.Count == 0) { Toast("Selecciona un usuario", false); return; }
+                string rol2 = lv.SelectedItems[0].SubItems[2].Text;
+                string perms = rol2 == "Admin" ? string.Join(",", MODULOS) : GetPerms(cksE);
+                int id = GetId(lv);
                 try
                 {
                     using (var con = Conn())
                     {
                         con.Open();
-                        using (var cmd = new SQLiteCommand("UPDATE usuario SET permisos=@pe WHERE id_usuario=@id", con))
-                        { cmd.Parameters.AddWithValue("@pe", perms); cmd.Parameters.AddWithValue("@id", id); cmd.ExecuteNonQuery(); }
+                        using (var cmd = new SQLiteCommand(
+                            "UPDATE usuario SET permisos=@pe WHERE id_usuario=@id", con))
+                        {
+                            cmd.Parameters.AddWithValue("@pe", perms);
+                            cmd.Parameters.AddWithValue("@id", id);
+                            cmd.ExecuteNonQuery();
+                        }
                     }
-                    Toast("Permisos actualizados correctamente ✅", Verde); CargarUsuarios(lista);
+                    Toast("Permisos guardados", true); LoadUsers(lv);
                 }
-                catch (Exception ex) { Toast("Error: " + ex.Message, Rojo); }
+                catch (Exception ex) { Toast("Error: " + ex.Message, false); }
             };
 
-            btnEliminar.Click += (s, e) =>
+            btnDel.Click += (s, e) =>
             {
-                if (lista.SelectedItems.Count == 0) { Toast("Selecciona un usuario de la lista ❌", Rojo); return; }
-                string nomSel = lista.SelectedItems[0].SubItems[1].Text;
-                string rolSel = lista.SelectedItems[0].SubItems[2].Text;
-                int id = int.Parse(lista.SelectedItems[0].SubItems[0].Text);
-                if (rolSel == "Admin" && nomSel == Sesion.Nombre) { Toast("No puedes eliminar tu propia cuenta ❌", Rojo); return; }
-                if (MessageBox.Show($"¿Eliminar al usuario '{nomSel}'?", "Confirmar",
+                if (lv.SelectedItems.Count == 0) { Toast("Selecciona un usuario", false); return; }
+                string nom2 = lv.SelectedItems[0].SubItems[1].Text;
+                string rol2 = lv.SelectedItems[0].SubItems[2].Text;
+                int id = GetId(lv);
+                if (rol2 == "Admin" && nom2 == Sesion.Nombre)
+                { Toast("No puedes eliminar tu propia cuenta", false); return; }
+                if (MessageBox.Show($"¿Eliminar a '{nom2}'?", "Confirmar",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
                 try
                 {
                     using (var con = Conn())
                     {
                         con.Open();
-                        using (var cmd = new SQLiteCommand("DELETE FROM usuario WHERE id_usuario=@id", con))
-                        { cmd.Parameters.AddWithValue("@id", id); cmd.ExecuteNonQuery(); }
+                        using (var cmd = new SQLiteCommand(
+                            "DELETE FROM usuario WHERE id_usuario=@id", con))
+                        {
+                            cmd.Parameters.AddWithValue("@id", id);
+                            cmd.ExecuteNonQuery();
+                        }
                     }
-                    Toast("Usuario eliminado ✅", Verde); CargarUsuarios(lista);
+                    Toast("Usuario eliminado", true); LoadUsers(lv);
                 }
-                catch (Exception ex) { Toast("Error: " + ex.Message, Rojo); }
+                catch (Exception ex) { Toast("Error: " + ex.Message, false); }
             };
 
-            return panel;
+            return page;
         }
 
-        // ══════════════════════════════════════════════════════
-        //  SECCIÓN: CAMBIAR PIN
-        // ══════════════════════════════════════════════════════
-        private Panel SeccionPin()
+        // ════════════════════════════════════════════════════════
+        //  PÁGINA: CAMBIAR PIN
+        // ════════════════════════════════════════════════════════
+        private Panel PagePin()
         {
-            Panel panel = new Panel(); panel.BackColor = Fondo;
-            Encabezado(panel, "🔑  Cambiar PIN de Usuario",
-                "Modifica el PIN de acceso de cualquier usuario del sistema");
+            Panel page = new Panel(); page.BackColor = C_BG;
+            PageHeader(page, "Cambiar PIN", "Reasigna el PIN de acceso de cualquier usuario");
 
-            Panel card = Tarjeta(22, 82, 796, 420); panel.Controls.Add(card);
-            CardHeader(card, "Selecciona el usuario y asigna el nuevo PIN");
+            Panel card = MkCard(24, 86, 800, 450, page);
+            SecLabel("Selecciona usuario", card, 20, 16);
 
-            // Usuario
-            MkLabel("Usuario", card, 16, 54);
-            ComboBox cmb = new ComboBox();
-            cmb.Size = new Size(520, 36); cmb.Location = new Point(16, 74);
-            cmb.Font = new Font("Segoe UI", 12); cmb.DropDownStyle = ComboBoxStyle.DropDownList;
-            cmb.BackColor = Fondo; cmb.FlatStyle = FlatStyle.Flat;
-            card.Controls.Add(cmb);
+            FldLabel("Usuario", card, 20, 52);
+            ComboBox cmb = MkCombo(card, 20, 70, 490);
+            LoadCmb(cmb);
 
-            Button btnRef = new Button(); btnRef.Text = "⟳";
-            btnRef.Size = new Size(44, 36); btnRef.Location = new Point(544, 74);
+            Button btnRef = new Button();
+            btnRef.Text = "↺"; btnRef.Size = new Size(40, 36); btnRef.Location = new Point(518, 70);
             btnRef.FlatStyle = FlatStyle.Flat; btnRef.FlatAppearance.BorderSize = 1;
-            btnRef.FlatAppearance.BorderColor = GrisBorde; btnRef.BackColor = Fondo;
-            btnRef.ForeColor = Azul2; btnRef.Cursor = Cursors.Hand;
-            btnRef.Font = new Font("Segoe UI", 15, FontStyle.Bold);
-            btnRef.Click += (s, e) => CargarCmb(cmb);
-            card.Controls.Add(btnRef); CargarCmb(cmb);
+            btnRef.FlatAppearance.BorderColor = C_BORDER; btnRef.BackColor = C_BG;
+            btnRef.ForeColor = C_TEXT2; btnRef.Cursor = Cursors.Hand;
+            btnRef.Font = new Font("Segoe UI", 13, FontStyle.Bold);
+            btnRef.Click += (s, e) => LoadCmb(cmb);
+            card.Controls.Add(btnRef);
 
-            // Separador
-            HSep(card, 126, 764);
+            card.Controls.Add(MkHRule(20, 126, 760, C_BORDER));
 
             // Nuevo PIN
-            MkLabel("Nuevo PIN", card, 16, 144);
-            TextBox txtN = MkBox(card, 16, 164, 300, true); txtN.MaxLength = 4;
-            txtN.Font = new Font("Segoe UI", 14);
-            Button ojo1 = OjoBtn(txtN); ojo1.Location = new Point(320, 164); card.Controls.Add(ojo1);
+            FldLabel("Nuevo PIN", card, 20, 146);
+            TextBox tN = MkInput(card, 20, 164, 290, true);
+            tN.MaxLength = 4; tN.Font = new Font("Segoe UI", 15, FontStyle.Bold);
+            Button oj1 = MkEyeBtn(tN); oj1.Location = new Point(318, 167); card.Controls.Add(oj1);
 
-            // Indicador de fuerza
-            Panel indBar = new Panel();
-            indBar.Size = new Size(300, 6); indBar.Location = new Point(16, 210);
-            indBar.BackColor = GrisBorde;
-            card.Controls.Add(indBar);
+            // Barra progreso
+            Panel barBg = new Panel();
+            barBg.Size = new Size(290, 4); barBg.Location = new Point(20, 212);
+            barBg.BackColor = C_BORDER; card.Controls.Add(barBg);
+            Panel barFg = new Panel();
+            barFg.Size = new Size(0, 4); barFg.Location = Point.Empty;
+            barFg.BackColor = C_PRIMARY; barBg.Controls.Add(barFg);
 
-            Panel indFill = new Panel();
-            indFill.Size = new Size(0, 6); indFill.Location = new Point(0, 0);
-            indFill.BackColor = Verde; indBar.Controls.Add(indFill);
+            Label lSeg = new Label();
+            lSeg.Font = new Font("Segoe UI", 8, FontStyle.Italic);
+            lSeg.Location = new Point(20, 222); lSeg.Size = new Size(380, 18);
+            lSeg.ForeColor = C_TEXT2; card.Controls.Add(lSeg);
 
-            Label lblSeg = new Label();
-            lblSeg.Font = new Font("Segoe UI", 9, FontStyle.Italic);
-            lblSeg.Location = new Point(16, 220); lblSeg.Size = new Size(400, 20);
-            lblSeg.ForeColor = GrisTexto; card.Controls.Add(lblSeg);
-
-            txtN.TextChanged += (s, e) =>
+            tN.TextChanged += (s, e) =>
             {
-                int len = txtN.Text.Length;
-                if (len == 0) { lblSeg.Text = ""; indFill.Width = 0; return; }
-                if (len < 4)
-                {
-                    lblSeg.Text = $"Faltan {4 - len} dígito(s) ❌";
-                    lblSeg.ForeColor = Rojo;
-                    indFill.BackColor = Rojo;
-                    indFill.Width = (300 / 4) * len;
-                }
-                else
-                {
-                    lblSeg.Text = "PIN completo ✅";
-                    lblSeg.ForeColor = Verde;
-                    indFill.BackColor = Verde;
-                    indFill.Width = 300;
-                }
+                int n = tN.Text.Length;
+                barFg.Width = (290 / 4) * n;
+                if (n == 0) { lSeg.Text = ""; barFg.Width = 0; return; }
+                if (n < 4) { lSeg.Text = $"Faltan {4 - n} dígito(s)"; lSeg.ForeColor = C_DANGER; barFg.BackColor = C_DANGER; }
+                else { lSeg.Text = "PIN completo"; lSeg.ForeColor = C_SUCCESS; barFg.BackColor = C_SUCCESS; }
             };
 
             // Confirmar PIN
-            MkLabel("Confirmar nuevo PIN", card, 16, 248);
-            TextBox txtC = MkBox(card, 16, 268, 300, true); txtC.MaxLength = 4;
-            txtC.Font = new Font("Segoe UI", 14);
-            Button ojo2 = OjoBtn(txtC); ojo2.Location = new Point(320, 268); card.Controls.Add(ojo2);
+            FldLabel("Confirmar PIN", card, 20, 256);
+            TextBox tC = MkInput(card, 20, 274, 290, true);
+            tC.MaxLength = 4; tC.Font = new Font("Segoe UI", 15, FontStyle.Bold);
+            Button oj2 = MkEyeBtn(tC); oj2.Location = new Point(318, 277); card.Controls.Add(oj2);
 
-            Label lblMatch = new Label();
-            lblMatch.Font = new Font("Segoe UI", 9, FontStyle.Italic);
-            lblMatch.Location = new Point(16, 310); lblMatch.Size = new Size(400, 20);
-            lblMatch.ForeColor = GrisTexto; card.Controls.Add(lblMatch);
+            Label lMatch = new Label();
+            lMatch.Font = new Font("Segoe UI", 8, FontStyle.Italic);
+            lMatch.Location = new Point(20, 318); lMatch.Size = new Size(380, 18);
+            lMatch.ForeColor = C_TEXT2; card.Controls.Add(lMatch);
 
-            txtC.TextChanged += (s, e) =>
+            tC.TextChanged += (s, e) =>
             {
-                if (txtC.Text.Length == 0) { lblMatch.Text = ""; return; }
-                if (txtN.Text == txtC.Text) { lblMatch.Text = "Los PINs coinciden ✅"; lblMatch.ForeColor = Verde; }
-                else { lblMatch.Text = "Los PINs no coinciden ❌"; lblMatch.ForeColor = Rojo; }
+                if (tC.Text.Length == 0) { lMatch.Text = ""; return; }
+                bool ok = tN.Text == tC.Text;
+                lMatch.Text = ok ? "Los PINs coinciden" : "Los PINs no coinciden";
+                lMatch.ForeColor = ok ? C_SUCCESS : C_DANGER;
             };
 
-            HSep(card, 340, 764);
+            card.Controls.Add(MkHRule(20, 354, 760, C_BORDER));
 
-            // Botones
-            Button btnAct = BtnAcc("🔑  Actualizar PIN", Azul2, card, 16, 358, 220, 48);
-            Button btnLmp = BtnAcc("Cancelar", Color.FromArgb(175, 185, 200), card, 250, 358, 140, 48);
-            btnLmp.ForeColor = Azul1;
-            HoverBtn(btnAct, AzulHov, Azul2);
-            btnLmp.Click += (s, e) => { txtN.Clear(); txtC.Clear(); lblSeg.Text = ""; lblMatch.Text = ""; indFill.Width = 0; };
+            Button btnSave = MkPrimary("Actualizar PIN", card, 20, 372, 180, 46);
+            Button btnCnc = MkSecondary("Cancelar", card, 214, 372, 120, 46);
 
-            btnAct.Click += (s, e) =>
+            btnCnc.Click += (s, e) =>
             {
-                if (cmb.SelectedItem == null) { Toast("Selecciona un usuario ❌", Rojo); return; }
-                string nv = txtN.Text.Trim(), cf = txtC.Text.Trim();
-                if (nv == "" || cf == "") { Toast("Llena todos los campos ❌", Rojo); return; }
-                if (nv != cf) { Toast("Los PINs no coinciden ❌", Rojo); return; }
-                if (nv.Length != 4) { Toast("El PIN debe tener exactamente 4 dígitos ❌", Rojo); return; }
-                if (MessageBox.Show("¿Cambiar el PIN de este usuario?", "Confirmar",
+                tN.Clear(); tC.Clear();
+                lSeg.Text = ""; lMatch.Text = "";
+                barFg.Width = 0; barFg.BackColor = C_PRIMARY;
+            };
+
+            btnSave.Click += (s, e) =>
+            {
+                if (cmb.SelectedItem == null) { Toast("Selecciona un usuario", false); return; }
+                string nv = tN.Text.Trim(), cf = tC.Text.Trim();
+                if (nv == "" || cf == "") { Toast("Completa los dos campos", false); return; }
+                if (nv != cf) { Toast("Los PINs no coinciden", false); return; }
+                if (nv.Length != 4) { Toast("El PIN debe tener 4 dígitos", false); return; }
+                if (MessageBox.Show("¿Actualizar el PIN de este usuario?", "Confirmar",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
                 int id = (int)cmb.SelectedValue;
                 try
@@ -460,45 +376,301 @@ namespace RestaurantKarin
                     using (var con = Conn())
                     {
                         con.Open();
-                        using (var cmd = new SQLiteCommand("UPDATE usuario SET pin_acceso=@p WHERE id_usuario=@id", con))
-                        { cmd.Parameters.AddWithValue("@p", nv); cmd.Parameters.AddWithValue("@id", id); cmd.ExecuteNonQuery(); }
+                        using (var cmd = new SQLiteCommand(
+                            "UPDATE usuario SET pin_acceso=@p WHERE id_usuario=@id", con))
+                        {
+                            cmd.Parameters.AddWithValue("@p", nv);
+                            cmd.Parameters.AddWithValue("@id", id);
+                            cmd.ExecuteNonQuery();
+                        }
                     }
-                    Toast("PIN actualizado correctamente ✅", Verde);
-                    txtN.Clear(); txtC.Clear(); lblSeg.Text = ""; lblMatch.Text = ""; indFill.Width = 0;
+                    Toast("PIN actualizado correctamente", true);
+                    tN.Clear(); tC.Clear();
+                    lSeg.Text = ""; lMatch.Text = "";
+                    barFg.Width = 0; barFg.BackColor = C_PRIMARY;
                 }
-                catch (Exception ex) { Toast("Error: " + ex.Message, Rojo); }
+                catch (Exception ex) { Toast("Error: " + ex.Message, false); }
             };
 
-            return panel;
+            return page;
         }
 
-        // ══════════════════════════════════════════════════════
-        //  HELPERS DB
-        // ══════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════
+        //  FACTORY DE CONTROLES
+        // ════════════════════════════════════════════════════════
+        private void PageHeader(Panel page, string titulo, string sub)
+        {
+            page.Controls.Add(MkLbl(titulo, new Font("Segoe UI", 18, FontStyle.Bold),
+                C_TEXT1, 24, 18, 790, 34, ContentAlignment.MiddleLeft));
+            page.Controls.Add(MkLbl(sub, new Font("Segoe UI", 10),
+                C_TEXT2, 24, 54, 790, 22, ContentAlignment.MiddleLeft));
+            Panel acc = new Panel();
+            acc.Size = new Size(42, 3); acc.Location = new Point(24, 78);
+            acc.BackColor = C_ACCENT; page.Controls.Add(acc);
+        }
+
+        private void SecLabel(string text, Panel card, int x, int y)
+        {
+            card.Controls.Add(MkLbl(text, new Font("Segoe UI", 10, FontStyle.Bold),
+                C_TEXT1, x, y, 500, 22, ContentAlignment.MiddleLeft));
+        }
+
+        private Label FldLabel(string text, Panel p, int x, int y)
+        {
+            Label l = MkLbl(text, new Font("Segoe UI", 8, FontStyle.Bold),
+                C_TEXT2, x, y, 200, 16, ContentAlignment.MiddleLeft);
+            p.Controls.Add(l); return l;
+        }
+
+        private Panel MkCard(int x, int y, int w, int h, Panel parent)
+        {
+            Panel c = new Panel();
+            c.Size = new Size(w, h); c.Location = new Point(x, y);
+            c.BackColor = C_SURFACE;
+            c.Paint += (s, e) =>
+                e.Graphics.DrawRectangle(new Pen(C_BORDER), 0, 0, c.Width - 1, c.Height - 1);
+            parent.Controls.Add(c); return c;
+        }
+
+        private TextBox MkInput(Panel p, int x, int y, int w, bool pwd = false)
+        {
+            TextBox t = new TextBox();
+            t.Size = new Size(w, 36); t.Location = new Point(x, y);
+            t.Font = new Font("Segoe UI", 11); t.BackColor = C_BG;
+            t.BorderStyle = BorderStyle.FixedSingle; t.UseSystemPasswordChar = pwd;
+            t.Enter += (s, e) => t.BackColor = Color.FromArgb(239, 246, 255);
+            t.Leave += (s, e) => t.BackColor = C_BG;
+            p.Controls.Add(t); return t;
+        }
+
+        private ComboBox MkCombo(Panel p, int x, int y, int w)
+        {
+            ComboBox c = new ComboBox();
+            c.Size = new Size(w, 36); c.Location = new Point(x, y);
+            c.Font = new Font("Segoe UI", 11); c.BackColor = C_BG;
+            c.DropDownStyle = ComboBoxStyle.DropDownList; c.FlatStyle = FlatStyle.Flat;
+            p.Controls.Add(c); return c;
+        }
+
+        private ListView MkListView(Panel p, int x, int y, int w, int h)
+        {
+            ListView lv = new ListView();
+            lv.Size = new Size(w, h); lv.Location = new Point(x, y);
+            lv.View = View.Details; lv.FullRowSelect = true;
+            lv.GridLines = false; lv.BorderStyle = BorderStyle.None;
+            lv.Font = new Font("Segoe UI", 10); lv.BackColor = C_SURFACE;
+            lv.OwnerDraw = true;
+
+            lv.DrawColumnHeader += (s, e) =>
+            {
+                e.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(248, 250, 252)), e.Bounds);
+                e.Graphics.DrawLine(new Pen(C_BORDER),
+                    e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+                if (e.Header.Index == 0) return;
+                using (StringFormat sf = new StringFormat { LineAlignment = StringAlignment.Center })
+                    e.Graphics.DrawString(e.Header.Text,
+                        new Font("Segoe UI", 8, FontStyle.Bold), new SolidBrush(C_TEXT2),
+                        new RectangleF(e.Bounds.X + 8, e.Bounds.Y, e.Bounds.Width, e.Bounds.Height), sf);
+            };
+
+            lv.DrawItem += (s, e) => e.DrawDefault = true;
+
+            lv.DrawSubItem += (s, e) =>
+            {
+                Color bg = e.Item.Selected
+                    ? Color.FromArgb(219, 234, 254)
+                    : e.ItemIndex % 2 == 0 ? C_SURFACE : Color.FromArgb(249, 250, 251);
+                e.Graphics.FillRectangle(new SolidBrush(bg), e.Bounds);
+                e.Graphics.DrawLine(new Pen(Color.FromArgb(241, 245, 249)),
+                    e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+
+                if (e.ColumnIndex == 0)
+                {
+                    // Punto de color: estado Activo=verde, Inactivo=rojo
+                    bool activo = e.Item.SubItems.Count > 3 &&
+                                  e.Item.SubItems[3].Text == "Activo";
+                    Color dot = activo ? C_SUCCESS : C_DANGER;
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.FillEllipse(new SolidBrush(dot),
+                        e.Bounds.X + 8, e.Bounds.Y + 8, 10, 10);
+                    return;
+                }
+
+                using (StringFormat sf = new StringFormat
+                {
+                    LineAlignment = StringAlignment.Center,
+                    Trimming = StringTrimming.EllipsisCharacter
+                })
+                    e.Graphics.DrawString(e.SubItem.Text,
+                        new Font("Segoe UI", 10), new SolidBrush(C_TEXT1),
+                        new RectangleF(e.Bounds.X + 8, e.Bounds.Y, e.Bounds.Width - 10, e.Bounds.Height), sf);
+            };
+
+            p.Controls.Add(lv); return lv;
+        }
+
+        private Dictionary<string, CheckBox> MkPermChecks(Panel p, int x, int y)
+        {
+            var d = new Dictionary<string, CheckBox>(); int cx = x;
+            foreach (string m in MODULOS)
+            {
+                CheckBox cb = new CheckBox();
+                cb.Text = m; cb.Font = new Font("Segoe UI", 9);
+                cb.ForeColor = C_TEXT1; cb.Size = new Size(124, 24);
+                cb.Location = new Point(cx, y); cb.Checked = true;
+                cb.FlatStyle = FlatStyle.Flat;
+                cb.FlatAppearance.BorderColor = C_BORDER;
+                p.Controls.Add(cb); d[m] = cb; cx += 130;
+            }
+            return d;
+        }
+
+        private Button MkPrimary(string t, Panel p, int x, int y, int w, int h)
+        {
+            Button b = new Button();
+            b.Text = t; b.Size = new Size(w, h); b.Location = new Point(x, y);
+            b.BackColor = C_PRIMARY; b.ForeColor = Color.White;
+            b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 0;
+            b.Font = new Font("Segoe UI", 10, FontStyle.Bold); b.Cursor = Cursors.Hand;
+            b.MouseEnter += (s, e) => b.BackColor = Color.FromArgb(29, 78, 216);
+            b.MouseLeave += (s, e) => b.BackColor = C_PRIMARY;
+            p.Controls.Add(b); return b;
+        }
+
+        private Button MkSecondary(string t, Panel p, int x, int y, int w, int h)
+        {
+            Button b = new Button();
+            b.Text = t; b.Size = new Size(w, h); b.Location = new Point(x, y);
+            b.BackColor = C_SURFACE; b.ForeColor = C_TEXT1;
+            b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 1;
+            b.FlatAppearance.BorderColor = C_BORDER;
+            b.Font = new Font("Segoe UI", 10); b.Cursor = Cursors.Hand;
+            b.MouseEnter += (s, e) => b.BackColor = C_BG;
+            b.MouseLeave += (s, e) => b.BackColor = C_SURFACE;
+            p.Controls.Add(b); return b;
+        }
+
+        private Button MkDanger(string t, Panel p, int x, int y, int w, int h)
+        {
+            Button b = new Button();
+            b.Text = t; b.Size = new Size(w, h); b.Location = new Point(x, y);
+            b.BackColor = Color.FromArgb(254, 242, 242); b.ForeColor = C_DANGER;
+            b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 1;
+            b.FlatAppearance.BorderColor = Color.FromArgb(254, 202, 202);
+            b.Font = new Font("Segoe UI", 10); b.Cursor = Cursors.Hand;
+            b.MouseEnter += (s, e) => b.BackColor = Color.FromArgb(254, 226, 226);
+            b.MouseLeave += (s, e) => b.BackColor = Color.FromArgb(254, 242, 242);
+            p.Controls.Add(b); return b;
+        }
+
+        private Button MkNavBtn(string text, int y, Panel sb)
+        {
+            Button b = new Button();
+            b.Text = text; b.Size = new Size(230, 44); b.Location = new Point(0, y);
+            b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 255, 255, 255);
+            b.BackColor = Color.Transparent; b.ForeColor = Color.FromArgb(210, 235, 245);
+            b.Font = new Font("Segoe UI", 10); b.TextAlign = ContentAlignment.MiddleLeft;
+            b.Padding = new Padding(24, 0, 0, 0); b.Cursor = Cursors.Hand;
+            sb.Controls.Add(b); return b;
+        }
+
+        private Button MkFlatBtn(string t, Font f, Color fg, Color bg,
+            int x, int y, int w, int h, Panel p)
+        {
+            Button b = new Button();
+            b.Text = t; b.Font = f; b.Size = new Size(w, h); b.Location = new Point(x, y);
+            b.BackColor = bg; b.ForeColor = fg; b.FlatStyle = FlatStyle.Flat;
+            b.FlatAppearance.BorderSize = 0; b.Cursor = Cursors.Hand;
+            p.Controls.Add(b); return b;
+        }
+
+        private Button MkEyeBtn(TextBox txt)
+        {
+            Button b = new Button();
+            b.Text = "○"; b.Size = new Size(36, 34);
+            b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 1;
+            b.FlatAppearance.BorderColor = C_BORDER; b.BackColor = C_BG;
+            b.ForeColor = C_TEXT2; b.Font = new Font("Segoe UI", 10); b.Cursor = Cursors.Hand;
+            b.Click += (s, e) =>
+            {
+                txt.UseSystemPasswordChar = !txt.UseSystemPasswordChar;
+                b.Text = txt.UseSystemPasswordChar ? "○" : "●";
+            };
+            return b;
+        }
+
+        private Label MkLbl(string t, Font f, Color fg,
+            int x, int y, int w, int h, ContentAlignment a)
+        {
+            return new Label
+            {
+                Text = t,
+                Font = f,
+                ForeColor = fg,
+                Location = new Point(x, y),
+                Size = new Size(w, h),
+                TextAlign = a
+            };
+        }
+
+        private Panel MkHRule(int x, int y, int w, Color c)
+        {
+            return new Panel { Size = new Size(w, 1), Location = new Point(x, y), BackColor = c };
+        }
+
+        // ════════════════════════════════════════════════════════
+        //  NAVEGACIÓN
+        // ════════════════════════════════════════════════════════
+        private void ActivarNav(Button b)
+        {
+            if (_activeNav != null)
+            {
+                _activeNav.BackColor = Color.Transparent;
+                _activeNav.ForeColor = Color.FromArgb(210, 235, 245);
+                _activeNav.Font = new Font("Segoe UI", 10);
+            }
+            b.BackColor = Color.FromArgb(40, 255, 255, 255);
+            b.ForeColor = Color.White;
+            b.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            _activeNav = b;
+        }
+
+        private void CargarSeccion(Panel p)
+        {
+            _content.Controls.Clear();
+            p.Dock = DockStyle.Fill;
+            _content.Controls.Add(p);
+        }
+
+        // ════════════════════════════════════════════════════════
+        //  DB HELPERS
+        // ════════════════════════════════════════════════════════
         private SQLiteConnection Conn() =>
             new SQLiteConnection(ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString);
 
-        private void CargarUsuarios(ListView lista)
+        private void LoadUsers(ListView lv)
         {
-            lista.Items.Clear();
+            lv.Items.Clear();
             try
             {
                 using (var con = Conn())
                 {
                     con.Open();
                     using (var cmd = new SQLiteCommand(
-                        "SELECT id_usuario,nombre,rol,estado,pin_acceso,permisos FROM usuario ORDER BY id_usuario", con))
+                        "SELECT id_usuario,nombre,rol,estado,pin_acceso,permisos FROM usuario ORDER BY nombre", con))
                     using (var r = cmd.ExecuteReader())
                     {
                         while (r.Read())
                         {
-                            var it = new ListViewItem(r["id_usuario"].ToString());
+                            var it = new ListViewItem(""); // col dot
+                            it.Tag = (int)(long)r["id_usuario"];
                             it.SubItems.Add(r["nombre"].ToString());
                             it.SubItems.Add(r["rol"].ToString());
-                            it.SubItems.Add(r["estado"].ToString() == "1" ? "✅ Activo" : "❌ Inactivo");
+                            it.SubItems.Add(r["estado"].ToString() == "1" ? "Activo" : "Inactivo");
                             it.SubItems.Add(r["pin_acceso"].ToString());
                             it.SubItems.Add(r["permisos"] == DBNull.Value ? "" : r["permisos"].ToString());
-                            lista.Items.Add(it);
+                            lv.Items.Add(it);
                         }
                     }
                 }
@@ -506,7 +678,7 @@ namespace RestaurantKarin
             catch { }
         }
 
-        private void CargarCmb(ComboBox cmb)
+        private void LoadCmb(ComboBox cmb)
         {
             try
             {
@@ -514,11 +686,12 @@ namespace RestaurantKarin
                 {
                     con.Open();
                     using (var cmd = new SQLiteCommand(
-                        "SELECT id_usuario, nombre||' ('||rol||')' AS d FROM usuario WHERE estado=1 ORDER BY nombre", con))
+                        "SELECT id_usuario, nombre||' — '||rol AS d FROM usuario WHERE estado=1 ORDER BY nombre", con))
                     using (var r = cmd.ExecuteReader())
                     {
                         var t = new System.Data.DataTable();
-                        t.Columns.Add("id_usuario", typeof(int)); t.Columns.Add("d", typeof(string));
+                        t.Columns.Add("id_usuario", typeof(int));
+                        t.Columns.Add("d", typeof(string));
                         while (r.Read()) t.Rows.Add(r["id_usuario"], r["d"]);
                         cmb.DataSource = t; cmb.DisplayMember = "d"; cmb.ValueMember = "id_usuario";
                     }
@@ -527,177 +700,55 @@ namespace RestaurantKarin
             catch { }
         }
 
-        private string ObtenerPermisos(Dictionary<string, CheckBox> checks)
+        private int GetId(ListView lv)
+        {
+            if (lv.SelectedItems.Count == 0) return 0;
+            object tag = lv.SelectedItems[0].Tag;
+            return tag != null ? (int)tag : 0;
+        }
+
+        private string GetPerms(Dictionary<string, CheckBox> d)
         {
             var l = new List<string>();
-            foreach (var kv in checks) if (kv.Value.Checked) l.Add(kv.Key);
+            foreach (var kv in d) if (kv.Value.Checked) l.Add(kv.Key);
             return string.Join(",", l);
         }
 
-        // ══════════════════════════════════════════════════════
-        //  HELPERS UI
-        // ══════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════
+        //  GFXHELPERS
+        // ════════════════════════════════════════════════════════
         [System.Runtime.InteropServices.DllImport("Gdi32.dll")]
         private static extern IntPtr CreateRoundRectRgn(int l, int t, int r, int b, int w, int h);
 
-        private GraphicsPath RoundPath(Rectangle r, int rad)
-        {
-            var p = new GraphicsPath();
-            p.AddArc(r.X, r.Y, rad * 2, rad * 2, 180, 90);
-            p.AddArc(r.Right - rad * 2, r.Y, rad * 2, rad * 2, 270, 90);
-            p.AddArc(r.Right - rad * 2, r.Bottom - rad * 2, rad * 2, rad * 2, 0, 90);
-            p.AddArc(r.X, r.Bottom - rad * 2, rad * 2, rad * 2, 90, 90);
-            p.CloseFigure(); return p;
-        }
-
-        private void SetDB(Panel p) =>
+        private void DoubleBufferPanel(Panel p) =>
             typeof(Panel).InvokeMember("DoubleBuffered",
                 BindingFlags.SetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
                 null, p, new object[] { true });
 
-        private Button NavBtn(string text, int y, Panel sidebar)
-        {
-            Button btn = new Button();
-            btn.Text = text; btn.Size = new Size(220, 44); btn.Location = new Point(0, y);
-            btn.FlatStyle = FlatStyle.Flat; btn.FlatAppearance.BorderSize = 0;
-            btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(35, 255, 255, 255);
-            btn.BackColor = Color.Transparent; btn.ForeColor = Color.FromArgb(210, 235, 245);
-            btn.Font = new Font("Segoe UI", 10); btn.TextAlign = ContentAlignment.MiddleLeft;
-            btn.Padding = new Padding(22, 0, 0, 0); btn.Cursor = Cursors.Hand;
-            sidebar.Controls.Add(btn); return btn;
-        }
-
-        private void SSep(Panel s, int y)
-        {
-            Panel p = new Panel(); p.Size = new Size(180, 1); p.Location = new Point(20, y);
-            p.BackColor = Color.FromArgb(60, 255, 255, 255); s.Controls.Add(p);
-        }
-
-        private void SLabel(Panel s, string t, int y)
-        {
-            Label l = new Label(); l.Text = t; l.Font = new Font("Segoe UI", 7, FontStyle.Bold);
-            l.ForeColor = Color.FromArgb(140, 200, 220); l.Size = new Size(220, 20);
-            l.Location = new Point(0, y); l.TextAlign = ContentAlignment.MiddleCenter;
-            s.Controls.Add(l);
-        }
-
-        private void ActivarNav(Button btn)
-        {
-            if (btnNavActivo != null)
-            {
-                btnNavActivo.BackColor = Color.Transparent;
-                btnNavActivo.ForeColor = Color.FromArgb(210, 235, 245);
-                btnNavActivo.Font = new Font("Segoe UI", 10);
-            }
-            btn.BackColor = Color.FromArgb(45, 255, 255, 255);
-            btn.ForeColor = Color.White; btn.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-            btnNavActivo = btn;
-        }
-
-        private void MostrarSeccion(Panel sec)
-        {
-            panelContenido.Controls.Clear();
-            sec.Dock = DockStyle.Fill;
-            panelContenido.Controls.Add(sec);
-        }
-
-        private void Encabezado(Panel panel, string titulo, string sub)
-        {
-            Label t = new Label(); t.Text = titulo;
-            t.Font = new Font("Segoe UI", 15, FontStyle.Bold); t.ForeColor = Azul1;
-            t.Location = new Point(22, 16); t.Size = new Size(790, 30); panel.Controls.Add(t);
-
-            Label s = new Label(); s.Text = sub;
-            s.Font = new Font("Segoe UI", 9); s.ForeColor = GrisTexto;
-            s.Location = new Point(22, 48); s.Size = new Size(790, 18); panel.Controls.Add(s);
-
-            Panel acc = new Panel(); acc.Size = new Size(46, 3);
-            acc.Location = new Point(22, 69); acc.BackColor = Aqua; panel.Controls.Add(acc);
-        }
-
-        private Panel Tarjeta(int x, int y, int w, int h)
-        {
-            Panel c = new Panel(); c.Size = new Size(w, h); c.Location = new Point(x, y);
-            c.BackColor = Blanco;
-            c.Paint += (s, e) => ControlPaint.DrawBorder(e.Graphics, c.ClientRectangle,
-                GrisBorde, 1, ButtonBorderStyle.Solid, GrisBorde, 1, ButtonBorderStyle.Solid,
-                GrisBorde, 1, ButtonBorderStyle.Solid, GrisBorde, 1, ButtonBorderStyle.Solid);
-            return c;
-        }
-
-        private void CardHeader(Panel card, string texto)
-        {
-            Panel ch = new Panel(); ch.Size = new Size(card.Width, 40); ch.Location = new Point(0, 0);
-            ch.BackColor = Color.FromArgb(243, 247, 252);
-            ch.Paint += (s, e) => e.Graphics.DrawLine(new Pen(GrisBorde), 0, 39, card.Width, 39);
-            Panel bar = new Panel(); bar.Size = new Size(4, 40); bar.Location = new Point(0, 0);
-            bar.BackColor = Aqua; ch.Controls.Add(bar);
-            Label lbl = new Label(); lbl.Text = texto;
-            lbl.Font = new Font("Segoe UI", 9, FontStyle.Bold); lbl.ForeColor = Azul2;
-            lbl.Location = new Point(14, 0); lbl.Size = new Size(card.Width - 16, 40);
-            lbl.TextAlign = ContentAlignment.MiddleLeft; ch.Controls.Add(lbl);
-            card.Controls.Add(ch);
-        }
-
-        private void HSep(Panel p, int y, int w)
-        {
-            Panel sep = new Panel(); sep.Size = new Size(w, 1);
-            sep.Location = new Point(16, y); sep.BackColor = GrisBorde; p.Controls.Add(sep);
-        }
-
-        private Label MkLabel(string t, Panel p, int x, int y)
-        {
-            Label l = new Label(); l.Text = t; l.Font = new Font("Segoe UI", 9);
-            l.ForeColor = GrisTexto; l.Location = new Point(x, y); l.AutoSize = true;
-            p.Controls.Add(l); return l;
-        }
-
-        private TextBox MkBox(Panel p, int x, int y, int w, bool pwd)
-        {
-            TextBox txt = new TextBox(); txt.Size = new Size(w, 34); txt.Location = new Point(x, y);
-            txt.Font = new Font("Segoe UI", 11); txt.BackColor = Fondo;
-            txt.BorderStyle = BorderStyle.FixedSingle; txt.UseSystemPasswordChar = pwd;
-            p.Controls.Add(txt); return txt;
-        }
-
-        private Button BtnAcc(string t, Color bg, Panel p, int x, int y, int w, int h)
-        {
-            Button btn = new Button(); btn.Text = t; btn.Size = new Size(w, h); btn.Location = new Point(x, y);
-            btn.BackColor = bg; btn.ForeColor = Blanco; btn.FlatStyle = FlatStyle.Flat;
-            btn.FlatAppearance.BorderSize = 0; btn.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-            btn.Cursor = Cursors.Hand; p.Controls.Add(btn); return btn;
-        }
-
-        private void HoverBtn(Button btn, Color hover, Color normal)
-        {
-            btn.MouseEnter += (s, e) => btn.BackColor = hover;
-            btn.MouseLeave += (s, e) => btn.BackColor = normal;
-        }
-
-        private Button OjoBtn(TextBox txt)
-        {
-            Button btn = new Button(); btn.Text = "👁"; btn.Size = new Size(42, 34);
-            btn.FlatStyle = FlatStyle.Flat; btn.FlatAppearance.BorderSize = 1;
-            btn.FlatAppearance.BorderColor = GrisBorde; btn.BackColor = Fondo;
-            btn.Cursor = Cursors.Hand; btn.Font = new Font("Segoe UI", 12);
-            btn.Click += (s, e) => { txt.UseSystemPasswordChar = !txt.UseSystemPasswordChar; btn.Text = txt.UseSystemPasswordChar ? "👁" : "🙈"; };
-            return btn;
-        }
-
-        private void Toast(string msg, Color color)
+        // ════════════════════════════════════════════════════════
+        //  TOAST
+        // ════════════════════════════════════════════════════════
+        private void Toast(string msg, bool ok)
         {
             Form toast = new Form();
-            toast.FormBorderStyle = FormBorderStyle.None; toast.StartPosition = FormStartPosition.Manual;
-            toast.Size = new Size(360, 54); toast.BackColor = color; toast.Opacity = 0.96;
-            toast.TopMost = true; toast.ShowInTaskbar = false;
-            toast.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, 360, 54, 10, 10));
-            toast.Location = new Point(this.Left + this.Width - 375, this.Top + this.Height - 74);
-            Label lbl = new Label(); lbl.Text = msg; lbl.ForeColor = Blanco;
-            lbl.Font = new Font("Segoe UI", 10, FontStyle.Bold); lbl.Dock = DockStyle.Fill;
-            lbl.TextAlign = ContentAlignment.MiddleCenter; toast.Controls.Add(lbl);
-            toast.Show(this);
-            var t = new System.Windows.Forms.Timer(); t.Interval = 2800;
-            t.Tick += (s, e) => { t.Stop(); toast.Close(); }; t.Start();
+            toast.FormBorderStyle = FormBorderStyle.None;
+            toast.Size = new Size(320, 48); toast.BackColor = ok ? C_SUCCESS : C_DANGER;
+            toast.Opacity = 0.97; toast.TopMost = true; toast.ShowInTaskbar = false;
+            toast.StartPosition = FormStartPosition.Manual;
+            toast.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, 320, 48, 8, 8));
+            toast.Location = new Point(this.Left + this.Width - 336, this.Top + this.Height - 64);
+
+            Label l = new Label();
+            l.Text = (ok ? "✓  " : "✕  ") + msg;
+            l.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            l.ForeColor = Color.White; l.Dock = DockStyle.Fill;
+            l.TextAlign = ContentAlignment.MiddleCenter;
+            toast.Controls.Add(l); toast.Show(this);
+
+            System.Windows.Forms.Timer t = new System.Windows.Forms.Timer();
+            t.Interval = 2600;
+            t.Tick += (s, e) => { t.Stop(); toast.Close(); };
+            t.Start();
         }
     }
 }
