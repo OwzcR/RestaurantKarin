@@ -98,12 +98,39 @@ namespace RestaurantKarin
                             FOREIGN KEY (id_receta) REFERENCES receta(id_receta) ON DELETE CASCADE
                         );
 
+                        CREATE TABLE Insumos (
+                            id_insumo INTEGER PRIMARY KEY AUTOINCREMENT,
+                            Nombre TEXT NOT NULL UNIQUE,
+                            StockActual REAL DEFAULT 0.00,
+                            Unidad TEXT DEFAULT 'gramos',
+                            StockMinimo REAL DEFAULT 0.00,
+                            FechaEntrada TEXT DEFAULT '',
+                            Costo REAL DEFAULT 0.00
+                        );
+
+                        INSERT INTO Insumos (Nombre, StockActual, Unidad, StockMinimo, FechaEntrada, Costo) VALUES
+                        ('Aceite vegetal', 0, 'mililitros', 0, '', 0.03),
+                        ('Bistek de res', 0, 'gramos', 0, '', 0.65),
+                        ('Bolillo', 0, 'pieza', 0, '', 2.00),
+                        ('Carne Brioche', 0, 'gramos', 0, '', 0.45),
+                        ('Cebolla', 0, 'gramos', 0, '', 0.02),
+                        ('Chile serrano', 0, 'pieza', 0, '', 0.50),
+                        ('Cilantro', 0, 'gramos', 0, '', 0.03),
+                        ('Jitomate', 0, 'pieza', 0, '', 2.00),
+                        ('Lechuga Rabenta', 0, 'gramos', 0, '', 0.05),
+                        ('Limón', 0, 'pieza', 0, '', 0.80),
+                        ('Pan de Hamburguesa', 0, 'rebanada', 0, '', 3.00),
+                        ('Pierna de cerdo', 0, 'gramos', 0, '', 0.30),
+                        ('Pollo deshebrado', 0, 'gramos', 0, '', 0.25),
+                        ('Queso Americano', 0, 'rebanada', 0, '', 2.50),
+                        ('Sal', 0, 'pizca', 0, '', 0.01),
+                        ('Tortilla tostada', 0, 'pieza', 0, '', 1.50);
+
                         INSERT INTO usuario (nombre, rol, pin_acceso, permisos)
                         VALUES ('Dueño Karin', 'Admin', '1234', 'Pedidos,Cuentas,Inventario,Recetas,Reportes');
 
                         INSERT INTO usuario (nombre, rol, pin_acceso, permisos)
                         VALUES ('Mesero Estrella', 'Mesero', '5678', 'Pedidos,Cuentas');
-
                         INSERT INTO mesa (numero_mesa, capacidad) VALUES (1, 4), (2, 4), (3, 6);
 
                         INSERT INTO categoria (nombre, descripcion) VALUES ('Mariscos Frescos', 'Ceviches y más');
@@ -173,12 +200,66 @@ CREATE TABLE IF NOT EXISTS receta_linea (
     unidad TEXT NOT NULL,
     costo_total REAL NOT NULL DEFAULT 0,
     FOREIGN KEY (id_receta) REFERENCES receta(id_receta) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS Insumos (
+    id_insumo INTEGER PRIMARY KEY AUTOINCREMENT,
+    Nombre TEXT NOT NULL UNIQUE,
+    StockActual REAL DEFAULT 0.00,
+    Unidad TEXT DEFAULT 'gramos',
+    StockMinimo REAL DEFAULT 0.00,
+    FechaEntrada TEXT DEFAULT '',
+    Costo REAL DEFAULT 0.00
 );";
                 using (var comando = new SQLiteCommand(sql, conexion))
                     comando.ExecuteNonQuery();
+
+                // Agrega columnas faltantes en bases con esquema anterior
+                foreach (var alter in new[]
+                {
+                    "ALTER TABLE Insumos ADD COLUMN StockActual REAL DEFAULT 0.00;",
+                    "ALTER TABLE Insumos ADD COLUMN StockMinimo REAL DEFAULT 0.00;",
+                    "ALTER TABLE Insumos ADD COLUMN FechaEntrada TEXT DEFAULT '';"
+                })
+                {
+                    try { using var a = new SQLiteCommand(alter, conexion); a.ExecuteNonQuery(); }
+                    catch { }
+                }
             }
 
             RecetasBaseDatos.SembrarEjemplosSiVacio();
+            SembrarInsumosSiVacio();
+        }
+
+        private static void SembrarInsumosSiVacio()
+        {
+            string nombreArchivo = "karin_pos.db";
+            if (!File.Exists(nombreArchivo)) return;
+
+            using var con = new SQLiteConnection($"Data Source={nombreArchivo};Version=3;");
+            con.Open();
+            using var c0 = new SQLiteCommand("SELECT COUNT(*) FROM Insumos;", con);
+            if (Convert.ToInt32((long)c0.ExecuteScalar()!) > 0) return;
+
+            const string insert = @"
+INSERT OR IGNORE INTO Insumos (Nombre, StockActual, Unidad, StockMinimo, FechaEntrada, Costo) VALUES
+('Aceite vegetal', 0, 'mililitros', 0, '', 0.03),
+('Bistek de res', 0, 'gramos', 0, '', 0.65),
+('Bolillo', 0, 'pieza', 0, '', 2.00),
+('Carne Brioche', 0, 'gramos', 0, '', 0.45),
+('Cebolla', 0, 'gramos', 0, '', 0.02),
+('Chile serrano', 0, 'pieza', 0, '', 0.50),
+('Cilantro', 0, 'gramos', 0, '', 0.03),
+('Jitomate', 0, 'pieza', 0, '', 2.00),
+('Lechuga Rabenta', 0, 'gramos', 0, '', 0.05),
+('Limón', 0, 'pieza', 0, '', 0.80),
+('Pan de Hamburguesa', 0, 'rebanada', 0, '', 3.00),
+('Pierna de cerdo', 0, 'gramos', 0, '', 0.30),
+('Pollo deshebrado', 0, 'gramos', 0, '', 0.25),
+('Queso Americano', 0, 'rebanada', 0, '', 2.50),
+('Sal', 0, 'pizca', 0, '', 0.01),
+('Tortilla tostada', 0, 'pieza', 0, '', 1.50);";
+            using var cmd = new SQLiteCommand(insert, con);
+            cmd.ExecuteNonQuery();
         }
     }
 }
