@@ -29,14 +29,8 @@ namespace RestaurantKarin
             string rutaIcono = Path.Combine(Application.StartupPath, "Imgs", "icono.ico");
 
             try { this.Icon = new Icon(rutaIcono); } catch { }
-
             this.BackColor = Color.FromArgb(29, 53, 87);
-            try
-            {
-                this.BackgroundImage = Image.FromFile(rutaFondo);
-                this.BackgroundImageLayout = ImageLayout.Stretch;
-            }
-            catch { }
+            try { this.BackgroundImage = Image.FromFile(rutaFondo); this.BackgroundImageLayout = ImageLayout.Stretch; } catch { }
 
             TableLayoutPanel tlpBase = new TableLayoutPanel();
             tlpBase.Dock = DockStyle.Fill;
@@ -56,8 +50,7 @@ namespace RestaurantKarin
             picLogo.SizeMode = PictureBoxSizeMode.Zoom;
             picLogo.Location = new Point(20, 20);
             picLogo.BackColor = Color.Transparent;
-            try { picLogo.Image = Image.FromFile(rutaIcono); }
-            catch { picLogo.BorderStyle = BorderStyle.FixedSingle; picLogo.BackColor = Color.Red; }
+            try { picLogo.Image = Image.FromFile(rutaIcono); } catch { picLogo.BorderStyle = BorderStyle.FixedSingle; }
             this.Controls.Add(picLogo);
             picLogo.BringToFront();
 
@@ -98,13 +91,8 @@ namespace RestaurantKarin
             txtPIN.MaxLength = 4;
             card.Controls.Add(txtPIN);
 
-            int startX = 65;
-            int startY = 135;
-            int spacing = 75;
-            int count = 1;
-
+            int startX = 65, startY = 135, spacing = 75, count = 1;
             for (int i = 0; i < 3; i++)
-            {
                 for (int j = 0; j < 3; j++)
                 {
                     Button btn = CrearBotonNumero(count.ToString(), txtPIN);
@@ -112,7 +100,6 @@ namespace RestaurantKarin
                     card.Controls.Add(btn);
                     count++;
                 }
-            }
 
             Button btn0 = CrearBotonNumero("0", txtPIN);
             btn0.Location = new Point(startX + spacing, startY + (3 * spacing));
@@ -128,7 +115,7 @@ namespace RestaurantKarin
             btnBorrar.FlatAppearance.BorderSize = 0;
             btnBorrar.Font = new Font("Segoe UI", 10, FontStyle.Bold);
             btnBorrar.Cursor = Cursors.Hand;
-            btnBorrar.Click += (s, e) => { txtPIN.Clear(); };
+            btnBorrar.Click += (s, e) => txtPIN.Clear();
             card.Controls.Add(btnBorrar);
 
             Button btnEntrar = new Button();
@@ -143,45 +130,40 @@ namespace RestaurantKarin
             btnEntrar.Cursor = Cursors.Hand;
             btnEntrar.Click += (s, e) =>
             {
-                string pinIngresado = txtPIN.Text;
-                if (pinIngresado.Length == 0) return;
-
-                string cadenaConexion = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
-
+                string pin = txtPIN.Text;
+                if (pin.Length == 0) return;
+                string cadena = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
                 try
                 {
-                    using (var conexion = new SQLiteConnection(cadenaConexion))
+                    using (var con = new SQLiteConnection(cadena))
                     {
-                        conexion.Open();
-                        string query = "SELECT nombre, rol FROM usuario WHERE pin_acceso = @pin AND estado = 1";
-                        using (var comando = new SQLiteCommand(query, conexion))
+                        con.Open();
+                        string q = "SELECT nombre, rol, permisos FROM usuario WHERE pin_acceso=@pin AND estado=1";
+                        using (var cmd = new SQLiteCommand(q, con))
                         {
-                            comando.Parameters.AddWithValue("@pin", pinIngresado);
-                            using (var lector = comando.ExecuteReader())
+                            cmd.Parameters.AddWithValue("@pin", pin);
+                            using (var r = cmd.ExecuteReader())
                             {
-                                if (lector.Read())
+                                if (r.Read())
                                 {
-                                    // Guardamos el rol en la sesión global
-                                    Sesion.Nombre = lector["nombre"].ToString();
-                                    Sesion.Rol = lector["rol"].ToString();
+                                    Sesion.Nombre = r["nombre"].ToString();
+                                    Sesion.Rol = r["rol"].ToString();
+                                    Sesion.Permisos = r["permisos"] == DBNull.Value ? "" : r["permisos"].ToString();
 
                                     MessageBox.Show(
                                         $"¡Acceso Autorizado!\n\nBienvenido(a): {Sesion.Nombre}\nRol: {Sesion.Rol}",
-                                        "Login Exitoso",
-                                        MessageBoxButtons.OK,
-                                        MessageBoxIcon.Information);
+                                        "Login Exitoso", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                                     txtPIN.Clear();
-
                                     Base principal = new Base();
-                                    principal.FormClosed += (senderArgs, evtArgs) => Application.Exit();
+                                    principal.FormClosed += (sa, ea) => Application.Exit();
                                     principal.Show();
                                     this.Hide();
                                 }
                                 else
                                 {
-                                    MessageBox.Show("El PIN ingresado es incorrecto o el usuario está inactivo.",
-                                                    "Acceso Denegado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    MessageBox.Show("PIN incorrecto o usuario inactivo.",
+                                        "Acceso Denegado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                     txtPIN.Clear();
                                 }
                             }
@@ -190,8 +172,8 @@ namespace RestaurantKarin
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("No se pudo acceder a la base de datos local.\n\nDetalle: " + ex.Message,
-                                    "Error de Base de Datos", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Error de base de datos:\n" + ex.Message,
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
             card.Controls.Add(btnEntrar);
@@ -209,11 +191,7 @@ namespace RestaurantKarin
             btn.Font = new Font("Segoe UI", 14, FontStyle.Bold);
             btn.Cursor = Cursors.Hand;
             btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 220, 220);
-            btn.Click += (s, e) =>
-            {
-                if (txt.Text.Length < 4)
-                    txt.Text += numero;
-            };
+            btn.Click += (s, e) => { if (txt.Text.Length < 4) txt.Text += numero; };
             return btn;
         }
 

@@ -1,15 +1,11 @@
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
 
 namespace RestaurantKarin
 {
-    /// <summary>
-    /// Pantalla principal de Recetas: lista, detalle, agregar (abre editor), editar, eliminar (modal).
-    /// Los colores y tamaños del diseño están en la clase interna <see cref="Diseno"/> al final del archivo.
-    /// Los datos vienen de <see cref="RecetasBaseDatos"/>.
-    /// </summary>
     public class PantallaRecetas : UserControl
     {
         private FlowLayoutPanel _flpLista = null!;
@@ -19,139 +15,148 @@ namespace RestaurantKarin
         private Label _lblCostoPorcionValor = null!;
         private Panel _pnlDetalleVacio = null!;
         private Panel _pnlCapaEditor = null!;
-        private Panel _pnlOverlayEliminar = null!;
+        private Panel _pnlContenido = null!;
+        private Form? _frmDimOverlay;
+        private Form? _frmModalEliminar;
+        private Panel _pnlDetalle = null!;
+        private TableLayoutPanel _tlpMain = null!;
         private PantallaRecetaAgregarEditar? _editor;
 
         private Receta? _seleccion;
-
         private const string WatermarkBusqueda = "BUSCAR ID PLATILLO :";
 
         public PantallaRecetas()
         {
             DoubleBuffered = true;
             BackColor = Color.Transparent;
-            Padding = new Padding(20, 18, 20, 18);
             ConstruirInterfaz();
             RefrescarListaRecetas();
         }
 
+        // ─── Construcción principal ───────────────────────────────────────────
+
         private void ConstruirInterfaz()
         {
-            var pnlRaiz = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.Transparent,
-                Padding = new Padding(8)
-            };
+            _pnlContenido = new Panel { BackColor = Color.White };
+            _pnlContenido.Resize += (_, _) => AplicarRegionRedondeada(_pnlContenido, 20);
 
-            var tlp = new TableLayoutPanel
+            _tlpMain = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
                 RowCount = 1,
                 BackColor = Color.Transparent
             };
-            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
-            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60f));
+            _tlpMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            _tlpMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 0f));
 
-            tlp.Controls.Add(CrearColumnaIzquierda(), 0, 0);
-            tlp.Controls.Add(CrearColumnaDerecha(), 1, 0);
-            pnlRaiz.Controls.Add(tlp);
+            _tlpMain.Controls.Add(CrearColumnaLista(), 0, 0);
+            _pnlDetalle = CrearColumnaDetalle();
+            _pnlDetalle.Visible = false;
+            _tlpMain.Controls.Add(_pnlDetalle, 1, 0);
 
-            _pnlCapaEditor = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Visible = false,
-                BackColor = Color.White
-            };
+            _pnlContenido.Controls.Add(_tlpMain);
 
-            _pnlOverlayEliminar = CrearOverlayEliminar();
-            _pnlOverlayEliminar.Dock = DockStyle.Fill;
-            _pnlOverlayEliminar.Visible = false;
+            _pnlCapaEditor = new Panel { Visible = false, BackColor = Color.White };
+            _pnlCapaEditor.Resize += (_, _) => AplicarRegionRedondeada(_pnlCapaEditor, 20);
 
-            Controls.Add(_pnlOverlayEliminar);
+            Controls.Add(_pnlContenido);
             Controls.Add(_pnlCapaEditor);
-            Controls.Add(pnlRaiz);
+
+            Resize += (_, _) => ColocarPanelContenido();
+            HandleCreated += (_, _) => ColocarPanelContenido();
+
+            ActualizarDetalle();
         }
 
-        private Panel CrearColumnaIzquierda()
+        private void ColocarPanelContenido()
+        {
+            const int mH = 16, mV = 16;
+            float pct = (_pnlDetalle?.Visible == true) ? 0.92f : 0.64f;
+            int w = Math.Max(300, (int)(ClientSize.Width * pct));
+            _pnlContenido.Bounds = new Rectangle(mH, mV, w, ClientSize.Height - mV * 2);
+            int editorW = Math.Max(400, (int)(ClientSize.Width * 0.94f));
+            _pnlCapaEditor.Bounds = new Rectangle(mH, mV, editorW, ClientSize.Height - mV * 2);
+        }
+
+        private void MostrarDetalle()
+        {
+            _tlpMain.ColumnStyles[0] = new ColumnStyle(SizeType.Percent, 52f);
+            _tlpMain.ColumnStyles[1] = new ColumnStyle(SizeType.Percent, 48f);
+            _pnlDetalle.Visible = true;
+            ColocarPanelContenido();
+        }
+
+        private void OcultarDetalle()
+        {
+            _tlpMain.ColumnStyles[0] = new ColumnStyle(SizeType.Percent, 100f);
+            _tlpMain.ColumnStyles[1] = new ColumnStyle(SizeType.Percent, 0f);
+            _pnlDetalle.Visible = false;
+            ColocarPanelContenido();
+        }
+
+        private void MostrarOverlayEliminar()
+        {
+            OcultarOverlayEliminar();
+            var mainForm = FindForm();
+            if (mainForm == null) return;
+
+            var origin = mainForm.PointToScreen(Point.Empty);
+
+            _frmDimOverlay = new Form
+            {
+                FormBorderStyle = FormBorderStyle.None,
+                AllowTransparency = true,
+                BackColor = Color.FromArgb(13, 41, 78),
+                Opacity = 0.80,
+                StartPosition = FormStartPosition.Manual,
+                Location = origin,
+                Size = mainForm.ClientSize,
+                ShowInTaskbar = false,
+                Owner = mainForm
+            };
+
+            var pnlModal = CrearPanelModal();
+            _frmModalEliminar = new Form
+            {
+                FormBorderStyle = FormBorderStyle.None,
+                BackColor = Color.White,
+                Size = new Size(560, 370),
+                StartPosition = FormStartPosition.Manual,
+                Location = new Point(
+                    origin.X + mainForm.ClientSize.Width / 2 - 280,
+                    origin.Y + mainForm.ClientSize.Height / 2 - 185
+                ),
+                ShowInTaskbar = false,
+                Owner = mainForm
+            };
+            pnlModal.Dock = DockStyle.Fill;
+            _frmModalEliminar.Controls.Add(pnlModal);
+
+            _frmDimOverlay.Show(mainForm);
+            _frmModalEliminar.Show(_frmDimOverlay);
+        }
+
+        private void OcultarOverlayEliminar()
+        {
+            _frmModalEliminar?.Close();
+            _frmDimOverlay?.Close();
+            _frmModalEliminar = null;
+            _frmDimOverlay = null;
+        }
+
+        // ─── Columna izquierda: lista ─────────────────────────────────────────
+
+        private Panel CrearColumnaLista()
         {
             var p = new Panel
             {
                 Dock = DockStyle.Fill,
                 BackColor = Diseno.PanelGrisMedio,
-                Padding = new Padding(16, 18, 16, 18),
-                Margin = new Padding(0, 0, 10, 0)
+                Padding = new Padding(14, 14, 14, 14)
             };
 
-            var pnlBusqueda = new Panel { Height = 48, Dock = DockStyle.Top, BackColor = Color.Transparent };
-            var btnAtras = new Button
-            {
-                Size = new Size(40, 40),
-                Location = new Point(0, 4),
-                Text = "<",
-                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = Diseno.TextoTitulo,
-                BackColor = Diseno.CremaFlechaAtras,
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand
-            };
-            btnAtras.FlatAppearance.BorderSize = 0;
-            btnAtras.Click += (_, _) =>
-            {
-                _seleccion = null;
-                ActualizarDetalle();
-                _txtBuscar.Text = WatermarkBusqueda;
-                _txtBuscar.ForeColor = Diseno.TextoPlaceholder;
-                RefrescarListaRecetas();
-            };
-
-            var pnlBuscarPill = new Panel
-            {
-                Location = new Point(48, 4),
-                Height = 40,
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
-            };
-            _txtBuscar = new TextBox
-            {
-                BorderStyle = BorderStyle.None,
-                Font = Diseno.FuenteCuerpo(10f),
-                ForeColor = Diseno.TextoNormal,
-                Location = new Point(36, 10),
-                Text = ""
-            };
-            var picLupa = new Label
-            {
-                Text = "🔍",
-                AutoSize = false,
-                Size = new Size(28, 28),
-                Location = new Point(6, 6),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 9f)
-            };
-            pnlBuscarPill.Controls.Add(_txtBuscar);
-            pnlBuscarPill.Controls.Add(picLupa);
-
-            var btnSeleccionar = new Button
-            {
-                Text = "SELECCIONAR",
-                Size = new Size(120, 40),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
-            };
-            Diseno.BotonPrimario(btnSeleccionar);
-            pnlBusqueda.Controls.Add(btnSeleccionar);
-            pnlBusqueda.Controls.Add(pnlBuscarPill);
-            pnlBusqueda.Controls.Add(btnAtras);
-            RegistrarWatermarkBusqueda();
-            pnlBusqueda.Layout += (_, _) =>
-            {
-                btnSeleccionar.Left = pnlBusqueda.ClientSize.Width - btnSeleccionar.Width;
-                btnSeleccionar.Top = 4;
-                pnlBuscarPill.Width = Math.Max(100, pnlBusqueda.ClientSize.Width - 48 - btnSeleccionar.Width - 8);
-                _txtBuscar.Width = pnlBuscarPill.Width - 44;
-            };
-            btnSeleccionar.Click += BtnSeleccionar_Click;
+            var pnlBusqueda = ConstruirBarraBusqueda();
 
             _flpLista = new FlowLayoutPanel
             {
@@ -160,42 +165,44 @@ namespace RestaurantKarin
                 WrapContents = false,
                 FlowDirection = FlowDirection.TopDown,
                 BackColor = Color.Transparent,
-                Padding = new Padding(0, 12, 0, 12)
+                Padding = new Padding(0, 8, 0, 8)
             };
             _flpLista.Resize += (_, _) => AjustarAnchoFilasLista();
 
-            var pnlPieIzq = new Panel { Height = 56, Dock = DockStyle.Bottom, BackColor = Color.Transparent };
+            var pnlPie = new Panel { Height = 66, Dock = DockStyle.Bottom, BackColor = Color.Transparent };
             var btnAgregar = new Button
             {
                 Text = "+  AGREGAR NUEVA RECETA",
-                Height = 46,
+                Height = 48,
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
             Diseno.BotonPrimario(btnAgregar);
             btnAgregar.Click += (_, _) => MostrarEditor(nuevo: true);
-            pnlPieIzq.Controls.Add(btnAgregar);
-            pnlPieIzq.Resize += (_, _) =>
+            pnlPie.Controls.Add(btnAgregar);
+            pnlPie.Resize += (_, _) =>
             {
-                int pad = 8;
-                btnAgregar.Width = pnlPieIzq.ClientSize.Width - pad * 2;
-                btnAgregar.Left = pad;
-                btnAgregar.Top = 5;
+                btnAgregar.Width = pnlPie.ClientSize.Width;
+                btnAgregar.Left = 0;
+                btnAgregar.Top = 10;
             };
 
+            // Fill primero, luego Bottom, luego Top
             p.Controls.Add(_flpLista);
-            p.Controls.Add(pnlPieIzq);
+            p.Controls.Add(pnlPie);
             p.Controls.Add(pnlBusqueda);
             return p;
         }
 
-        private Panel CrearColumnaDerecha()
+        // ─── Columna derecha: detalle ─────────────────────────────────────────
+
+        private Panel CrearColumnaDetalle()
         {
             var p = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Diseno.BlancoTarjeta,
-                Padding = new Padding(18, 16, 18, 16),
-                Margin = new Padding(10, 0, 0, 0)
+                BackColor = Color.White,
+                Padding = new Padding(20, 16, 20, 16)
             };
 
             var tlp = new TableLayoutPanel
@@ -203,23 +210,25 @@ namespace RestaurantKarin
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
                 RowCount = 4,
-                BackColor = Diseno.BlancoTarjeta
+                BackColor = Color.White
             };
-            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-            tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 44f));
-            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 56f));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 50f));   // título
+            tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));    // tabla
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));    // costo (2 líneas)
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 62f));    // botones
 
+            // ── Título ──
             _lblTituloReceta = new Label
             {
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = Diseno.TealPrimario,
                 Text = "RECETA :",
                 TextAlign = ContentAlignment.MiddleLeft,
                 AutoEllipsis = true
             };
 
+            // ── DataGridView ──
             _dgvDetalle = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -230,24 +239,58 @@ namespace RestaurantKarin
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
+                BorderStyle = BorderStyle.None,
                 EnableHeadersVisualStyles = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                ColumnHeadersHeight = 34,
-                Font = Diseno.FuenteCuerpo()
+                ColumnHeadersHeight = 38,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                Font = new Font("Segoe UI", 10.5f, FontStyle.Regular),
+                GridColor = Color.FromArgb(220, 220, 220),
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal
             };
-            _dgvDetalle.ColumnHeadersDefaultCellStyle.BackColor = Diseno.PanelGrisMedio;
-            _dgvDetalle.ColumnHeadersDefaultCellStyle.Font = Diseno.FuenteTituloSeccion();
+            _dgvDetalle.RowTemplate.Height = 36;
+
+            // Cabeceras: fondo blanco, texto negro bold
+            _dgvDetalle.ColumnHeadersDefaultCellStyle.BackColor = Color.White;
             _dgvDetalle.ColumnHeadersDefaultCellStyle.ForeColor = Diseno.TextoNormal;
-            _dgvDetalle.AlternatingRowsDefaultCellStyle.BackColor = Diseno.ZebraClaro;
-            _dgvDetalle.Columns.Add("cInsumo", "Insumo");
-            _dgvDetalle.Columns.Add("cCant", "Cantidad");
-            _dgvDetalle.Columns.Add("cUnid", "Unidad");
+            _dgvDetalle.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+            _dgvDetalle.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.White;
+            _dgvDetalle.ColumnHeadersDefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+
+            // Filas normales
+            _dgvDetalle.DefaultCellStyle.BackColor = Color.White;
+            _dgvDetalle.DefaultCellStyle.ForeColor = Diseno.TextoNormal;
+            _dgvDetalle.DefaultCellStyle.SelectionBackColor = Color.FromArgb(204, 229, 240);
+            _dgvDetalle.DefaultCellStyle.SelectionForeColor = Diseno.TextoNormal;
+            _dgvDetalle.DefaultCellStyle.Padding = new Padding(4, 0, 4, 0);
+
+            // Filas alternas
+            _dgvDetalle.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 248, 248);
+
+            // Columnas con proporciones y alineaciones
+            var colInsumo = new DataGridViewTextBoxColumn
+            {
+                Name = "cInsumo", HeaderText = "Insumo", FillWeight = 50f,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleLeft }
+            };
+            var colCant = new DataGridViewTextBoxColumn
+            {
+                Name = "cCant", HeaderText = "Cantidad", FillWeight = 25f,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter },
+                HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleCenter } }
+            };
+            var colUnid = new DataGridViewTextBoxColumn
+            {
+                Name = "cUnid", HeaderText = "Unidad", FillWeight = 25f,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter },
+                HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleCenter } }
+            };
+            _dgvDetalle.Columns.AddRange(colInsumo, colCant, colUnid);
 
             _pnlDetalleVacio = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             _pnlDetalleVacio.Controls.Add(new Label
             {
-                Text = "Selecciona una receta de la lista o usa SELECCIONAR.",
+                Text = "Selecciona una receta\npara ver sus detalles.",
                 ForeColor = Diseno.TextoSecundario,
                 Font = Diseno.FuenteCuerpo(10f),
                 TextAlign = ContentAlignment.MiddleCenter,
@@ -258,38 +301,44 @@ namespace RestaurantKarin
             pnlGridHost.Controls.Add(_dgvDetalle);
             pnlGridHost.Controls.Add(_pnlDetalleVacio);
 
+            // ── Costo (etiqueta arriba, valor abajo) ──
             var pnlCosto = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlCosto.Controls.Add(new Label
+            var lblCostoTxt = new Label
             {
                 Text = "Costo por porción:",
                 AutoSize = true,
-                Font = Diseno.FuenteTituloSeccion(10f),
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Diseno.TextoNormal,
-                Location = new Point(0, 10)
-            });
+                Location = new Point(0, 8)
+            };
             _lblCostoPorcionValor = new Label
             {
                 AutoSize = true,
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 15f, FontStyle.Bold),
                 ForeColor = Diseno.VerdeCosto,
-                Location = new Point(170, 8),
-                Text = "$ 0.00"
+                Location = new Point(0, 32),
+                Text = "$0.00"
             };
+            pnlCosto.Controls.Add(lblCostoTxt);
             pnlCosto.Controls.Add(_lblCostoPorcionValor);
 
+            // ── Botones (llenan el ancho completo, separados por gap) ──
             var pnlAcciones = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+
             var btnEditar = new Button
             {
                 Text = "+  EDITAR RECETA",
-                Size = new Size(200, 42),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Height = 48,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(27, 94, 32),
                 ForeColor = Color.White,
-                Font = Diseno.FuenteBotonMayus(),
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnEditar.FlatAppearance.BorderSize = 0;
+            btnEditar.MouseEnter += (_, _) => btnEditar.BackColor = Color.FromArgb(20, 70, 24);
+            btnEditar.MouseLeave += (_, _) => btnEditar.BackColor = Color.FromArgb(27, 94, 32);
             btnEditar.Click += (_, _) =>
             {
                 if (_seleccion == null) return;
@@ -300,26 +349,31 @@ namespace RestaurantKarin
             var btnBorrar = new Button
             {
                 Text = "+  BORRAR RECETA",
-                Size = new Size(200, 42),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Height = 48,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Diseno.TealPrimario,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Cursor = Cursors.Hand
             };
-            Diseno.BotonPrimario(btnBorrar);
+            btnBorrar.FlatAppearance.BorderSize = 0;
+            btnBorrar.MouseEnter += (_, _) => btnBorrar.BackColor = Diseno.TealOscuro;
+            btnBorrar.MouseLeave += (_, _) => btnBorrar.BackColor = Diseno.TealPrimario;
             btnBorrar.Click += (_, _) =>
             {
                 if (_seleccion == null) return;
-                _pnlOverlayEliminar.Visible = true;
-                _pnlOverlayEliminar.BringToFront();
+                MostrarOverlayEliminar();
             };
 
             pnlAcciones.Controls.Add(btnBorrar);
             pnlAcciones.Controls.Add(btnEditar);
             pnlAcciones.Resize += (_, _) =>
             {
-                int gap = 12;
-                btnBorrar.Left = pnlAcciones.ClientSize.Width - btnBorrar.Width;
-                btnEditar.Left = btnBorrar.Left - gap - btnEditar.Width;
-                btnBorrar.Top = 6;
-                btnEditar.Top = 6;
+                const int gap = 10, top = 6;
+                int mitad = (pnlAcciones.ClientSize.Width - gap) / 2;
+                btnEditar.SetBounds(0, top, mitad, btnEditar.Height);
+                btnBorrar.SetBounds(mitad + gap, top, mitad, btnBorrar.Height);
             };
 
             tlp.Controls.Add(_lblTituloReceta, 0, 0);
@@ -327,14 +381,173 @@ namespace RestaurantKarin
             tlp.Controls.Add(pnlCosto, 0, 2);
             tlp.Controls.Add(pnlAcciones, 0, 3);
             p.Controls.Add(tlp);
-
-            ActualizarDetalle();
             return p;
         }
 
+        // ─── Barra de búsqueda ────────────────────────────────────────────────
+
+        private Panel ConstruirBarraBusqueda()
+        {
+            var pnlBar = new Panel { Height = 54, Dock = DockStyle.Top, BackColor = Color.Transparent };
+
+            var pnlPill = new Panel
+            {
+                Top = 7,
+                Height = 40,
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            var picLupa = new Label
+            {
+                Text = "🔍",
+                AutoSize = false,
+                Size = new Size(28, 28),
+                Location = new Point(6, 5),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 9f),
+                BackColor = Color.Transparent
+            };
+
+            _txtBuscar = new TextBox
+            {
+                BorderStyle = BorderStyle.None,
+                Font = Diseno.FuenteCuerpo(10f),
+                ForeColor = Diseno.TextoNormal,
+                Location = new Point(38, 10),
+                BackColor = Color.White,
+                Text = WatermarkBusqueda
+            };
+
+            pnlPill.Controls.Add(_txtBuscar);
+            pnlPill.Controls.Add(picLupa);
+            RegistrarWatermarkBusqueda();
+
+            var btnSeleccionar = new Button
+            {
+                Text = "SELECCIONAR",
+                Size = new Size(130, 40),
+                Top = 7,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+            Diseno.BotonPrimario(btnSeleccionar);
+            btnSeleccionar.Click += BtnSeleccionar_Click;
+
+            pnlBar.Controls.Add(btnSeleccionar);
+            pnlBar.Controls.Add(pnlPill);
+            pnlBar.Layout += (_, _) =>
+            {
+                const int gap = 10;
+                btnSeleccionar.Left = pnlBar.ClientSize.Width - btnSeleccionar.Width;
+                pnlPill.Left = 0;
+                pnlPill.Width = Math.Max(80, btnSeleccionar.Left - gap);
+                _txtBuscar.Width = Math.Max(10, pnlPill.Width - 46);
+            };
+
+            return pnlBar;
+        }
+
+        // ─── Modal: confirmar eliminación ────────────────────────────────────
+
+        private Panel CrearPanelModal()
+        {
+            const int mw = 560, mh = 370;
+            var modal = new Panel { Size = new Size(mw, mh), BackColor = Color.White };
+
+            // ── Botón X circular ──
+            const int xSz = 36;
+            var btnCerrar = new Button
+            {
+                Text = "✕",
+                Size = new Size(xSz, xSz),
+                Location = new Point(mw - xSz - 14, 12),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Diseno.TealPrimario,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnCerrar.FlatAppearance.BorderSize = 0;
+            var circlePath = new GraphicsPath();
+            circlePath.AddEllipse(0, 0, xSz, xSz);
+            btnCerrar.Region = new Region(circlePath);
+            circlePath.Dispose();
+            btnCerrar.Click += (_, _) => OcultarOverlayEliminar();
+
+            // ── Título ──
+            var lblTit = new Label
+            {
+                Text = "¿ELIMINAR RECETA?",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Diseno.TealPrimario,
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Location = new Point(40, 50),
+                Size = new Size(mw - 80, 46)
+            };
+
+            // ── Texto explicativo ──
+            var lblCuerpo = new Label
+            {
+                Text = "Atención: La receta seleccionada y toda su información asociada " +
+                       "(ingredientes, costos, etc.) serán eliminadas permanentemente. " +
+                       "Esta acción no se puede deshacer.",
+                Font = new Font("Segoe UI", 10.5f, FontStyle.Regular),
+                ForeColor = Diseno.TextoNormal,
+                Location = new Point(40, 108),
+                Size = new Size(mw - 80, 90),
+                TextAlign = ContentAlignment.TopLeft,
+                AutoSize = false
+            };
+
+            // ── ¿Deseas continuar? ──
+            var lblPregunta = new Label
+            {
+                Text = "¿Deseas continuar?",
+                Font = new Font("Segoe UI", 10.5f, FontStyle.Regular),
+                ForeColor = Diseno.TextoNormal,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = false,
+                Location = new Point(40, 208),
+                Size = new Size(mw - 80, 30)
+            };
+
+            // ── Botones ──
+            const int btnW = 190, btnH = 44, btnGap = 20;
+            int bx = (mw - btnW * 2 - btnGap) / 2;
+            int by = mh - 72;
+
+            var btnCancel = new Button { Text = "CANCELAR", Size = new Size(btnW, btnH), Location = new Point(bx, by) };
+            Diseno.BotonSecundario(btnCancel);
+            btnCancel.Click += (_, _) => OcultarOverlayEliminar();
+
+            var btnSi = new Button { Text = "SÍ, ELIMINAR", Size = new Size(btnW, btnH), Location = new Point(bx + btnW + btnGap, by) };
+            Diseno.BotonPrimario(btnSi);
+            btnSi.Click += (_, _) =>
+            {
+                if (_seleccion != null)
+                {
+                    try { RecetasBaseDatos.Eliminar(_seleccion.Id); }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("No se pudo eliminar.\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+                    _seleccion = null;
+                    RefrescarListaRecetas();
+                    ActualizarDetalle();
+                }
+                OcultarOverlayEliminar();
+            };
+
+            modal.Controls.AddRange(new Control[] { btnSi, btnCancel, lblPregunta, lblCuerpo, lblTit, btnCerrar });
+            return modal;
+        }
+
+        // ─── Watermark ────────────────────────────────────────────────────────
+
         private void RegistrarWatermarkBusqueda()
         {
-            _txtBuscar.Text = WatermarkBusqueda;
             _txtBuscar.ForeColor = Diseno.TextoPlaceholder;
             _txtBuscar.Enter += (_, _) =>
             {
@@ -354,102 +567,7 @@ namespace RestaurantKarin
             };
         }
 
-        private Panel CrearOverlayEliminar()
-        {
-            var capa = new Panel { BackColor = Color.Black };
-            capa.Paint += (_, e) =>
-            {
-                using var b = new SolidBrush(Color.FromArgb(170, 13, 41, 78));
-                e.Graphics.FillRectangle(b, capa.ClientRectangle);
-            };
-
-            var modal = new Panel
-            {
-                Size = new Size(520, 300),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
-            };
-            capa.Resize += (_, _) =>
-            {
-                modal.Left = (capa.ClientSize.Width - modal.Width) / 2;
-                modal.Top = (capa.ClientSize.Height - modal.Height) / 2;
-            };
-
-            var btnCerrar = new Button
-            {
-                Text = "X",
-                Size = new Size(32, 32),
-                Location = new Point(modal.Width - 40, 8),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Diseno.TealPrimario,
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btnCerrar.FlatAppearance.BorderSize = 0;
-            btnCerrar.Click += (_, _) => { capa.Visible = false; };
-
-            var lblTit = new Label
-            {
-                Text = "¿ELIMINAR RECETA?",
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Diseno.TealPrimario,
-                AutoSize = false,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Location = new Point(20, 44),
-                Width = 480,
-                Height = 32
-            };
-
-            var lblCuerpo = new Label
-            {
-                Text = "Atención: La receta seleccionada y toda su información asociada (ingredientes, costos, etc.) " +
-                       "serán eliminadas permanentemente. Esta acción no se puede deshacer.\n\n¿Deseas continuar?",
-                Font = Diseno.FuenteCuerpo(9.5f),
-                ForeColor = Diseno.TextoNormal,
-                Location = new Point(28, 84),
-                Size = new Size(460, 120),
-                TextAlign = ContentAlignment.TopCenter,
-                AutoSize = false
-            };
-
-            var btnCancel = new Button { Text = "CANCELAR", Size = new Size(180, 40) };
-            Diseno.BotonSecundario(btnCancel);
-            btnCancel.Location = new Point(40, 240);
-            btnCancel.Click += (_, _) => { capa.Visible = false; };
-
-            var btnSi = new Button { Text = "SÍ, ELIMINAR", Size = new Size(180, 40) };
-            Diseno.BotonPrimario(btnSi);
-            btnSi.Location = new Point(300, 240);
-            btnSi.Click += (_, _) =>
-            {
-                if (_seleccion != null)
-                {
-                    try
-                    {
-                        RecetasBaseDatos.Eliminar(_seleccion.Id);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("No se pudo eliminar.\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                    _seleccion = null;
-                    RefrescarListaRecetas();
-                    ActualizarDetalle();
-                }
-                capa.Visible = false;
-            };
-
-            modal.Controls.Add(btnSi);
-            modal.Controls.Add(btnCancel);
-            modal.Controls.Add(lblCuerpo);
-            modal.Controls.Add(lblTit);
-            modal.Controls.Add(btnCerrar);
-            capa.Controls.Add(modal);
-
-            return capa;
-        }
+        // ─── Búsqueda ─────────────────────────────────────────────────────────
 
         private void BtnSeleccionar_Click(object? sender, EventArgs e)
         {
@@ -461,6 +579,7 @@ namespace RestaurantKarin
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
             Receta? encontrada = null;
             if (int.TryParse(q, out int id))
                 encontrada = RecetasBaseDatos.ObtenerPorId(id);
@@ -477,10 +596,14 @@ namespace RestaurantKarin
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
             _seleccion = encontrada;
             ActualizarDetalle();
             RefrescarListaRecetas(resaltarId: encontrada.Id);
+            MostrarDetalle();
         }
+
+        // ─── Lista ────────────────────────────────────────────────────────────
 
         private void RefrescarListaRecetas(int? resaltarId = null)
         {
@@ -508,38 +631,41 @@ namespace RestaurantKarin
 
         private Panel CrearFilaReceta(Receta r, bool zebraClaro, bool resaltada)
         {
-            int h = 52;
+            const int h = 52;
             var fila = new Panel
             {
                 Height = h,
-                Margin = new Padding(0, 0, 0, 6),
-                BackColor = resaltada ? Color.FromArgb(220, 237, 244) : (zebraClaro ? Diseno.ZebraGris : Color.White)
+                Margin = new Padding(0, 0, 0, 4),
+                BackColor = resaltada ? Color.FromArgb(204, 229, 240) : (zebraClaro ? Color.White : Diseno.ZebraGris)
             };
 
             var lblNombre = new Label
             {
                 Text = r.Nombre,
                 AutoEllipsis = true,
-                Font = Diseno.FuenteCuerpo(10.5f),
+                Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
                 ForeColor = Diseno.TextoNormal,
                 TextAlign = ContentAlignment.MiddleLeft,
                 Location = new Point(12, 0),
-                Height = h - 2
+                Height = h
             };
 
             var btnVer = new Button
             {
                 Text = "👁\nVER",
-                Size = new Size(64, h - 8),
+                Size = new Size(62, h - 8),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             Diseno.BotonPrimario(btnVer);
             btnVer.Font = new Font("Segoe UI", 7.5f, FontStyle.Bold);
+
             int idFila = r.Id;
             btnVer.Click += (_, _) =>
             {
                 _seleccion = RecetasBaseDatos.ObtenerPorId(idFila);
                 ActualizarDetalle();
+                RefrescarListaRecetas(resaltarId: idFila);
+                MostrarDetalle();
             };
 
             fila.Controls.Add(btnVer);
@@ -549,7 +675,6 @@ namespace RestaurantKarin
                 btnVer.Left = fila.ClientSize.Width - btnVer.Width - 8;
                 btnVer.Top = 4;
                 lblNombre.Width = fila.ClientSize.Width - btnVer.Width - 28;
-                lblNombre.Top = (fila.ClientSize.Height - lblNombre.Height) / 2;
             };
 
             return fila;
@@ -557,11 +682,13 @@ namespace RestaurantKarin
 
         private void AjustarAnchoFilasLista()
         {
-            int w = _flpLista.ClientSize.Width - 24;
+            int w = _flpLista.ClientSize.Width - 4;
             if (w < 120) w = 120;
             foreach (Control c in _flpLista.Controls)
                 c.Width = w;
         }
+
+        // ─── Actualizar panel de detalle ──────────────────────────────────────
 
         private void ActualizarDetalle()
         {
@@ -571,8 +698,9 @@ namespace RestaurantKarin
                 _dgvDetalle.Rows.Clear();
                 _pnlDetalleVacio.Visible = true;
                 _dgvDetalle.Visible = false;
-                _lblCostoPorcionValor.Text = "$ 0.00";
+                _lblCostoPorcionValor.Text = "$0.00";
                 _pnlDetalleVacio.BringToFront();
+                OcultarDetalle();
                 return;
             }
 
@@ -583,8 +711,10 @@ namespace RestaurantKarin
             _dgvDetalle.Rows.Clear();
             foreach (var l in _seleccion.Lineas)
                 _dgvDetalle.Rows.Add(l.Insumo, l.Cantidad.ToString("0.##"), l.Unidad);
-            _lblCostoPorcionValor.Text = "$ " + _seleccion.CostoPorPorcion.ToString("0.00");
+            _lblCostoPorcionValor.Text = "$" + _seleccion.CostoPorPorcion.ToString("0.00");
         }
+
+        // ─── Editor ───────────────────────────────────────────────────────────
 
         private void MostrarEditor(bool nuevo)
         {
@@ -620,7 +750,30 @@ namespace RestaurantKarin
             ActualizarDetalle();
         }
 
-        /// <summary>Colores y fuentes del diseño (todo en un solo sitio dentro de esta pantalla).</summary>
+        // ─── Helpers visuales ─────────────────────────────────────────────────
+
+        private static void AplicarRegionRedondeada(Control ctrl, int radio)
+        {
+            if (ctrl.Width <= 0 || ctrl.Height <= 0) return;
+            var path = GetRoundedPath(new Rectangle(0, 0, ctrl.Width, ctrl.Height), radio);
+            ctrl.Region = new Region(path);
+            path.Dispose();
+        }
+
+        private static GraphicsPath GetRoundedPath(Rectangle r, int radio)
+        {
+            int d = radio * 2;
+            var path = new GraphicsPath();
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        // ─── Diseño ───────────────────────────────────────────────────────────
+
         private static class Diseno
         {
             public static readonly Color TealPrimario = Color.FromArgb(26, 82, 118);
@@ -628,10 +781,7 @@ namespace RestaurantKarin
             public static readonly Color PanelGrisMedio = Color.FromArgb(224, 224, 224);
             public static readonly Color ZebraClaro = Color.FromArgb(250, 250, 250);
             public static readonly Color ZebraGris = Color.FromArgb(236, 236, 236);
-            public static readonly Color BlancoTarjeta = Color.White;
-            public static readonly Color CremaFlechaAtras = Color.FromArgb(249, 231, 159);
             public static readonly Color VerdeCosto = Color.FromArgb(45, 106, 79);
-            public static readonly Color TextoTitulo = Color.FromArgb(13, 41, 78);
             public static readonly Color TextoNormal = Color.FromArgb(33, 33, 33);
             public static readonly Color TextoSecundario = Color.FromArgb(97, 97, 97);
             public static readonly Color TextoPlaceholder = Color.FromArgb(158, 158, 158);
