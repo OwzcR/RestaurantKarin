@@ -104,7 +104,16 @@ namespace RestaurantKarin
 
             // Pedidos
             if (Sesion.TienePermiso("Pedidos"))
-                menuButtons.Add(CrearBotonMenu("Pedidos", "pedidos.png", startY + spacing * 0));
+            {
+                Button btnPedidos = CrearBotonMenu("Pedidos", "pedidos.png", startY + spacing * 0);
+                btnPedidos.Click += (s, e) =>
+                {
+                    PanelContenedor.Controls.Clear();
+                    var pedidos = new Pedidos { Dock = DockStyle.Fill };
+                    PanelContenedor.Controls.Add(pedidos);
+                };
+                menuButtons.Add(btnPedidos);
+            }
 
             // Cuentas
             if (Sesion.TienePermiso("Cuentas"))

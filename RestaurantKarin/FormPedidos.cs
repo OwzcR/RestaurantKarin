@@ -23,50 +23,42 @@ namespace RestaurantKarin
     }
 
     
-    public partial class Pedidos : Form
+    public partial class Pedidos : UserControl
     {
         // ── Controls ─────────────────────────────────────────────────────────
-        private Panel PanelMenu = null!;
         private Panel PanelContenedor = null!;
-        private Button BtnToggleMenu = null!;
-        private Button BtnLogOut = null!;
-        private readonly List<Button> _menuButtons = new();
         private FlowLayoutPanel FlowActivas = null!;
         private FlowLayoutPanel FlowDisponibles = null!;
         private Panel ScrollPanel = null!;
 
         // ── State ─────────────────────────────────────────────────────────────
-        private bool _menuExpanded = true;
         private List<MesaModel> _mesas = new();
 
         // ── Layout constants ──────────────────────────────────────────────────
-        private const int MenuExpanded = 200;
-        private const int MenuCollapsed = 64;
         private const int CardHeight = 130;
         private const int RowHeight = 46;
 
         // ── Palette ───────────────────────────────────────────────────────────
-        private static readonly Color SidebarTop = Color.FromArgb(64, 188, 216);
-        private static readonly Color SidebarBottom = Color.FromArgb(13, 41, 78);
-        private static readonly Color MainBg = Color.FromArgb(26, 58, 107);
-        private static readonly Color CardWhite = Color.White;
-        private static readonly Color AccentTeal = Color.FromArgb(0, 137, 123);
-        private static readonly Color AccentSlate = Color.FromArgb(84, 110, 122);
+        private static readonly Color MainBg         = Color.FromArgb(26, 58, 107);
+        private static readonly Color CardBg         = Color.FromArgb(232, 232, 232);   // #E8E8E8
+        private static readonly Color BtnAgregar     = Color.FromArgb(0, 151, 167);     // #0097A7
+        private static readonly Color BtnDetalles    = Color.FromArgb(0, 124, 145);     // #007C91
+        private static readonly Color BtnCerrar      = Color.FromArgb(0, 35, 55);       // #002337
+        private static readonly Color BtnAbrir       = Color.FromArgb(23, 91, 122);     // #175B7A
+        private static readonly Color BtnSeleccionar = Color.FromArgb(98, 199, 211);    // #62C7D3
         private static readonly Color AccentDarkNavy = Color.FromArgb(26, 35, 126);
-        private static readonly Color AvailableAlpha = Color.FromArgb(38, 255, 255, 255);
-        private static readonly Color TextDark = Color.FromArgb(30, 30, 30);
+        private static readonly Color TextDark       = Color.FromArgb(30, 30, 30);
 
         // ── Shared fonts (created once, reused everywhere) ────────────────────
-        private static readonly Font FontNav = new("Segoe UI", 11, FontStyle.Regular);
-        private static readonly Font FontBold9 = new("Segoe UI", 9, FontStyle.Bold);
+        private static readonly Font FontBtn      = new("Sansation", 9, FontStyle.Bold);
+        private static readonly Font FontBold9    = new("Segoe UI", 9, FontStyle.Bold);
         private static readonly Font FontRegular9 = new("Segoe UI", 9, FontStyle.Regular);
-        private static readonly Font FontBold13 = new("Segoe UI", 13, FontStyle.Bold);
-        private static readonly Font FontBold10 = new("Segoe UI", 10, FontStyle.Bold);
-        private static readonly Font FontBold8 = new("Segoe UI", 8, FontStyle.Bold);
+        private static readonly Font FontBold13   = new("Sansation", 13, FontStyle.Bold);
+        private static readonly Font FontBold10   = new("Sansation", 10, FontStyle.Bold);
 
         public Pedidos()
         {
-            this.DoubleBuffered = true;
+            DoubleBuffered = true;
             InitializeMesaData();
             SetupUI();
         }
@@ -131,108 +123,21 @@ namespace RestaurantKarin
    
         private void SetupUI()
         {
-            Text = "Pedidos — Restaurante Karin";
-            MinimumSize = new Size(1024, 768);
-            WindowState = FormWindowState.Maximized;
-            AutoScaleMode = AutoScaleMode.None;
-            BackColor = MainBg;
-
-            try { Icon = new Icon(Path.Combine(Application.StartupPath, "Imgs", "icono.ico")); } catch { }
-
-            BuildSidebar();
+            SuspendLayout();
+            BackColor = Color.Transparent;
             BuildContentPanel();
-
-            // Sidebar renders on top of content
             Controls.Add(PanelContenedor);
-            Controls.Add(PanelMenu);
-
             BuildMesasUI();
+            ResumeLayout(true);
         }
 
-     
-        private void BuildSidebar()
-        {
-            PanelMenu = new Panel { Dock = DockStyle.Left, Width = MenuExpanded };
-            EnableDoubleBuffer(PanelMenu);
-
-            // Gradient background
-            PanelMenu.Paint += (_, e) =>
-            {
-                using var brush = new LinearGradientBrush(
-                    PanelMenu.ClientRectangle, SidebarTop, SidebarBottom, 90f);
-                e.Graphics.FillRectangle(brush, PanelMenu.ClientRectangle);
-            };
-
-            // Reposition logout button when sidebar resizes
-            PanelMenu.Resize += (_, _) =>
-            {
-                PanelMenu.Invalidate();
-                if (BtnLogOut != null)
-                {
-                    BtnLogOut.Location = new Point(0, PanelMenu.Height - 56);
-                    BtnLogOut.Width = PanelMenu.Width;
-                }
-            };
-
-            // ── Logo badge ────────────────────────────────────────────────────
-            var badge = new Label
-            {
-                Size = new Size(56, 56),
-                Location = new Point((MenuExpanded - 56) / 2, 16),
-                Text = "KARIN",
-                Font = new Font("Segoe UI", 8, FontStyle.Bold),
-                ForeColor = Color.White,
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.FromArgb(200, 168, 75),
-                Cursor = Cursors.Hand
-            };
-            var circlePath = new GraphicsPath();
-            circlePath.AddEllipse(0, 0, 55, 55);
-            badge.Region = new Region(circlePath);
-            PanelMenu.Controls.Add(badge);
-
-         
-            BtnToggleMenu = new Button
-            {
-                Text = "◄",
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.Transparent,
-                FlatStyle = FlatStyle.Flat,
-                Size = new Size(32, 32),
-               
-                Location = new Point(MenuExpanded - 38, 88),
-                Cursor = Cursors.Hand
-            };
-            BtnToggleMenu.FlatAppearance.BorderSize = 0;
-            BtnToggleMenu.FlatAppearance.MouseOverBackColor = Color.FromArgb(40, 255, 255, 255);
-            BtnToggleMenu.Click += (_, _) => ToggleMenu();
-            PanelMenu.Controls.Add(BtnToggleMenu);
-
-            // ── Nav items ─────────────────────────────────────────────────────
-            int y = 88, step = 52;
-            _menuButtons.Add(CreateNavButton("Pedidos", "pedidos.png", y));
-            _menuButtons.Add(CreateNavButton("Cuentas", "cuentas.png", y + step));
-            _menuButtons.Add(CreateNavButton("Inventario", "inventario.png", y + step * 2));
-            _menuButtons.Add(CreateNavButton("Recetas", "recetas.png", y + step * 3));
-            _menuButtons.Add(CreateNavButton("Reportes", "reportes.png", y + step * 4));
-            _menuButtons.Add(CreateNavButton("Configuración", "configuration.png", y + step * 5));
-
-            // ── Logout button (bottom-anchored) ───────────────────────────────
-            // FIX: use a separate reference; don't mix posY=0 with nav items
-            BtnLogOut = CreateNavButton("Salir", "logout.png", PanelMenu.Height - 56);
-            BtnLogOut.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            BtnLogOut.ForeColor = Color.FromArgb(200, 255, 255, 255);
-            BtnLogOut.Click += BtnLogOut_Click;
-            // BtnLogOut is already added to PanelMenu inside CreateNavButton
-        }
 
         // ─────────────────────────────────────────────────────────────────────
         //  Main content panel
         // ─────────────────────────────────────────────────────────────────────
         private void BuildContentPanel()
         {
-            PanelContenedor = new Panel { Dock = DockStyle.Fill, BackColor = MainBg };
+            PanelContenedor = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -240,6 +145,7 @@ namespace RestaurantKarin
         // ─────────────────────────────────────────────────────────────────────
         private void BuildMesasUI()
         {
+            PanelContenedor.SuspendLayout();
             PanelContenedor.Controls.Clear();
 
             ScrollPanel = new Panel
@@ -249,6 +155,8 @@ namespace RestaurantKarin
                 Padding = new Padding(24, 20, 24, 20),
                 BackColor = Color.Transparent
             };
+            EnableDoubleBuffer(ScrollPanel);
+            ScrollPanel.SuspendLayout();
 
             // ── Search bar ────────────────────────────────────────────────────
             var searchPanel = BuildSearchBar();
@@ -259,23 +167,25 @@ namespace RestaurantKarin
 
             FlowActivas = new FlowLayoutPanel
             {
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Dock = DockStyle.Top,
+                Height = 0,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false,
-                Padding = new Padding(0, 6, 0, 6)
+                Padding = new Padding(0, 6, 0, 6),
+                BackColor = Color.Transparent
             };
+            EnableDoubleBuffer(FlowActivas);
 
             FlowDisponibles = new FlowLayoutPanel
             {
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Dock = DockStyle.Top,
+                Height = 0,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false,
-                Padding = new Padding(0, 6, 0, 6)
+                Padding = new Padding(0, 6, 0, 6),
+                BackColor = Color.Transparent
             };
+            EnableDoubleBuffer(FlowDisponibles);
 
             // Controls added bottom-to-top when Dock = Top
             ScrollPanel.Controls.Add(FlowDisponibles);
@@ -289,6 +199,9 @@ namespace RestaurantKarin
             // ── Populate cards ────────────────────────────────────────────────
             RefreshMesaCards();
 
+            ScrollPanel.ResumeLayout(false);
+            PanelContenedor.ResumeLayout(false);
+
             // ── Responsive sizing ─────────────────────────────────────────────
             AdjustCardWidths();
             Resize += (_, _) => AdjustCardWidths();
@@ -296,6 +209,8 @@ namespace RestaurantKarin
 
         private void RefreshMesaCards()
         {
+            FlowActivas.SuspendLayout();
+            FlowDisponibles.SuspendLayout();
             FlowActivas.Controls.Clear();
             FlowDisponibles.Controls.Clear();
 
@@ -313,6 +228,9 @@ namespace RestaurantKarin
                 FlowDisponibles.Controls.Add(row);
             }
 
+            FlowActivas.ResumeLayout(false);
+            FlowDisponibles.ResumeLayout(false);
+            UpdateFlowHeights();
             AdjustCardWidths();
         }
 
@@ -374,10 +292,10 @@ namespace RestaurantKarin
                 Top = 8,
                 Height = 34,
                 AutoSize = true,
-                BackColor = AccentTeal,
+                BackColor = BtnSeleccionar,
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = FontBold9,
+                Font = FontBtn,
                 Cursor = Cursors.Hand
             };
             btnSelect.FlatAppearance.BorderSize = 0;
@@ -394,6 +312,8 @@ namespace RestaurantKarin
         {
             query = query.Trim().ToLower();
 
+            FlowActivas.SuspendLayout();
+            FlowDisponibles.SuspendLayout();
             FlowActivas.Controls.Clear();
             FlowDisponibles.Controls.Clear();
 
@@ -416,6 +336,9 @@ namespace RestaurantKarin
                 FlowDisponibles.Controls.Add(row);
             }
 
+            FlowActivas.ResumeLayout(false);
+            FlowDisponibles.ResumeLayout(false);
+            UpdateFlowHeights();
             AdjustCardWidths();
         }
 
@@ -427,17 +350,15 @@ namespace RestaurantKarin
             var card = new Panel
             {
                 Height = CardHeight,
-                BackColor = CardWhite,
+                BackColor = CardBg,
                 Padding = new Padding(16, 12, 16, 0)
             };
 
-            // FIX: draw rounded rect on Paint instead of using Region clipping
-            // so that inner controls remain fully visible
             card.Paint += (_, e) =>
             {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 using var path = RoundedRect(new Rectangle(0, 0, card.Width - 1, card.Height - 1), 12);
-                using var fill = new SolidBrush(CardWhite);
+                using var fill = new SolidBrush(CardBg);
                 e.Graphics.FillPath(fill, path);
             };
 
@@ -455,9 +376,9 @@ namespace RestaurantKarin
             int ix = 88;
             card.Controls.Add(MakeInfoLabel($"MESA : {m.Id}", ix, 12));
             card.Controls.Add(MakeInfoLabel($"Personas : {m.Personas}", ix + 130, 12));
-            card.Controls.Add(MakeInfoLabel($"Hora Llegada : {m.HoraLlegada:hh:mm tt}", ix + 300, 12));
-            card.Controls.Add(MakeInfoLabel($"Cuenta : {m.Cuenta:C}", ix, 42));
-            card.Controls.Add(MakeInfoLabel($"Propina ({m.PropinaPercent}%) : {m.Cuenta * m.PropinaPercent / 100:C}", ix + 130, 42));
+            card.Controls.Add(MakeInfoLabel($"Hora Llegada : {m.HoraLlegada.ToString("hh:mm tt").ToLower()}", ix + 300, 12));
+            card.Controls.Add(MakeInfoLabel($"Cuenta : {m.Cuenta:0}$", ix, 42));
+            card.Controls.Add(MakeInfoLabel($"Propina : {m.PropinaPercent}%", ix + 130, 42));
 
             // ── Action button bar ─────────────────────────────────────────────
             // FIX: use TableLayoutPanel for reliable equal-width button columns
@@ -476,9 +397,9 @@ namespace RestaurantKarin
             actionBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34f));
             actionBar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            var btnA = MakeActionBtn("Agregar Pedido", AccentTeal, () => OnAgregarPedido(m));
-            var btnD = MakeActionBtn("Detalles", AccentSlate, () => OnVerDetalles(m));
-            var btnC = MakeActionBtn("Cerrar Cuenta", AccentDarkNavy, () => OnCerrarCuenta(m));
+            var btnA = MakeActionBtn("Agregar Pedido", BtnAgregar, () => OnAgregarPedido(m));
+            var btnD = MakeActionBtn("Detalles", BtnDetalles, () => OnVerDetalles(m));
+            var btnC = MakeActionBtn("Cerrar Cuenta", BtnCerrar, () => OnCerrarCuenta(m));
 
             btnA.Dock = DockStyle.Fill;
             btnD.Dock = DockStyle.Fill;
@@ -500,7 +421,7 @@ namespace RestaurantKarin
             var row = new Panel
             {
                 Height = RowHeight,
-                BackColor = AvailableAlpha
+                BackColor = Color.Transparent
             };
 
             // FIX: paint rounded rect; avoid Region clipping that clips child controls
@@ -508,7 +429,7 @@ namespace RestaurantKarin
             {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 using var path = RoundedRect(new Rectangle(0, 0, row.Width - 1, row.Height - 1), 10);
-                using var fill = new SolidBrush(AvailableAlpha);
+                using var fill = new SolidBrush(CardBg);
                 e.Graphics.FillPath(fill, path);
             };
 
@@ -516,7 +437,7 @@ namespace RestaurantKarin
             {
                 Text = $"MESA : {m.Id}",
                 Font = FontBold10,
-                ForeColor = Color.White,
+                ForeColor = AccentDarkNavy,
                 AutoSize = true,
                 Location = new Point(16, 12),
                 BackColor = Color.Transparent
@@ -526,7 +447,7 @@ namespace RestaurantKarin
             {
                 Text = $"Capacidad : {m.CapacidadMax} Personas",
                 Font = FontRegular9,
-                ForeColor = Color.FromArgb(220, 255, 255, 255),
+                ForeColor = Color.FromArgb(60, 80, 120),
                 AutoSize = true,
                 Location = new Point(160, 14),
                 BackColor = Color.Transparent
@@ -535,21 +456,22 @@ namespace RestaurantKarin
             var btnAbrir = new Button
             {
                 Text = "Abrir Cuenta",
-                Font = FontBold9,
+                Font = FontBtn,
                 ForeColor = Color.White,
-                BackColor = AccentTeal,
+                BackColor = BtnAbrir,
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(110, 28),
+                Size = new Size(116, 30),
                 Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Right | AnchorStyles.Top
             };
             btnAbrir.FlatAppearance.BorderSize = 0;
             btnAbrir.Click += (_, _) => OnAbrirCuenta(m);
+            ApplyRoundedButton(btnAbrir, 8);
 
             // FIX: use Layout instead of a lambda closure that may capture stale width
             row.Layout += (_, _) =>
             {
-                btnAbrir.Location = new Point(row.Width - 126, 9);
+                btnAbrir.Location = new Point(row.Width - 130, 8);
             };
 
             row.Controls.Add(lblName);
@@ -622,94 +544,6 @@ namespace RestaurantKarin
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        //  Sidebar helpers
-        // ─────────────────────────────────────────────────────────────────────
-        private Button CreateNavButton(string label, string icon, int posY)
-        {
-            var btn = new Button
-            {
-                Text = "   " + label,
-                Size = new Size(PanelMenu?.Width ?? MenuExpanded, 48),
-                Location = new Point(0, posY),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                FlatStyle = FlatStyle.Flat,
-                ForeColor = Color.White,
-                BackColor = Color.Transparent,
-                Font = FontNav,
-                TextAlign = ContentAlignment.MiddleLeft,
-                ImageAlign = ContentAlignment.MiddleLeft,
-                TextImageRelation = TextImageRelation.ImageBeforeText,
-                Cursor = Cursors.Hand,
-                Tag = label,
-                Padding = new Padding(14, 0, 0, 0)
-            };
-            btn.FlatAppearance.BorderSize = 0;
-            btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(40, 255, 255, 255);
-
-            try
-            {
-                btn.Image = Image.FromFile(Path.Combine(Application.StartupPath, "Imgs", icon));
-            }
-            catch { /* icon not found — render text-only */ }
-
-            btn.MouseEnter += (_, _) => btn.BackColor = Color.FromArgb(40, 255, 255, 255);
-            btn.MouseLeave += (_, _) => btn.BackColor = Color.Transparent;
-
-            PanelMenu?.Controls.Add(btn);
-            return btn;
-        }
-
-        private void ToggleMenu()
-        {
-            if (PanelMenu == null) return;
-            _menuExpanded = !_menuExpanded;
-
-            SuspendLayout();
-
-            if (_menuExpanded)
-            {
-                PanelMenu.Width = MenuExpanded;
-                BtnToggleMenu.Text = "◄";
-                // FIX: restore correct location after expand
-                BtnToggleMenu.Location = new Point(MenuExpanded - 38, 88);
-
-                foreach (var btn in _menuButtons)
-                {
-                    btn.Text = "   " + (btn.Tag as string ?? "");
-                    btn.ImageAlign = ContentAlignment.MiddleLeft;
-                    btn.Padding = new Padding(14, 0, 0, 0);
-                }
-            }
-            else
-            {
-                PanelMenu.Width = MenuCollapsed;
-                BtnToggleMenu.Text = "►";
-                // FIX: center toggle inside collapsed sidebar
-                BtnToggleMenu.Location = new Point((MenuCollapsed - 32) / 2, 88);
-
-                foreach (var btn in _menuButtons)
-                {
-                    btn.Text = "";
-                    btn.ImageAlign = ContentAlignment.MiddleCenter;
-                    btn.Padding = Padding.Empty;
-                }
-            }
-
-            ResumeLayout(true);
-        }
-
-        private void BtnLogOut_Click(object? sender, EventArgs e)
-        {
-            var r = MessageBox.Show("¿Estás seguro de que deseas cerrar sesión?",
-                "Cerrar Sesión", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            if (r == DialogResult.Yes)
-            {
-                new FormLogin().Show();
-                Hide();
-            }
-        }
-
-        // ─────────────────────────────────────────────────────────────────────
         //  Layout helpers
         // ─────────────────────────────────────────────────────────────────────
         private void AdjustCardWidths()
@@ -720,6 +554,13 @@ namespace RestaurantKarin
             foreach (Control c in FlowDisponibles.Controls) c.Width = w;
         }
 
+        private void UpdateFlowHeights()
+        {
+            if (FlowActivas == null || FlowDisponibles == null) return;
+            FlowActivas.Height = Math.Max(12, FlowActivas.Controls.Count * (CardHeight + 10) + 12);
+            FlowDisponibles.Height = Math.Max(12, FlowDisponibles.Controls.Count * (RowHeight + 8) + 12);
+        }
+
         // ─────────────────────────────────────────────────────────────────────
         //  Factory helpers
         // ─────────────────────────────────────────────────────────────────────
@@ -727,8 +568,8 @@ namespace RestaurantKarin
         {
             Text = text,
             Font = FontBold13,
-            ForeColor = Color.White,
-            Height = 32,
+            ForeColor = Color.FromArgb(20, 30, 55),
+            Height = 36,
             Dock = DockStyle.Top,
             BackColor = Color.Transparent
         };
@@ -748,7 +589,7 @@ namespace RestaurantKarin
             var btn = new Button
             {
                 Text = text,
-                Font = FontBold8,
+                Font = FontBtn,
                 ForeColor = Color.White,
                 BackColor = bg,
                 FlatStyle = FlatStyle.Flat,
@@ -765,18 +606,30 @@ namespace RestaurantKarin
         private static void DrawTableIcon(object? sender, PaintEventArgs e)
         {
             if (sender is not Panel p) return;
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            using var dark = new SolidBrush(Color.FromArgb(84, 110, 122));
-            using var light = new SolidBrush(Color.FromArgb(120, 144, 156));
-            using var seat = new SolidBrush(Color.FromArgb(80, 255, 255, 255));
+            int cx = p.Width / 2, cy = p.Height / 2;
 
-            e.Graphics.FillRectangle(dark, 4, 22, 52, 26);   // table body
-            e.Graphics.FillRectangle(light, 8, 18, 44, 8);    // table surface
-            e.Graphics.FillRectangle(dark, 6, 46, 8, 14);   // left leg
-            e.Graphics.FillRectangle(dark, 46, 46, 8, 14);   // right leg
-            e.Graphics.FillRectangle(seat, 8, 28, 18, 12);   // left seat
-            e.Graphics.FillRectangle(seat, 34, 28, 18, 12);   // right seat
+            using var pen = new Pen(Color.FromArgb(84, 110, 122), 1.8f);
+            using var tableFill = new SolidBrush(Color.FromArgb(225, 238, 248));
+            using var chairFill = new SolidBrush(Color.FromArgb(200, 220, 238));
+
+            // Table surface (top-down view, centered)
+            g.FillRectangle(tableFill, cx - 18, cy - 22, 36, 42);
+            g.DrawRectangle(pen, cx - 18, cy - 22, 36, 42);
+
+            // Left chairs
+            g.FillRectangle(chairFill, cx - 30, cy - 14, 11, 10);
+            g.DrawRectangle(pen, cx - 30, cy - 14, 11, 10);
+            g.FillRectangle(chairFill, cx - 30, cy + 4, 11, 10);
+            g.DrawRectangle(pen, cx - 30, cy + 4, 11, 10);
+
+            // Right chairs
+            g.FillRectangle(chairFill, cx + 19, cy - 14, 11, 10);
+            g.DrawRectangle(pen, cx + 19, cy - 14, 11, 10);
+            g.FillRectangle(chairFill, cx + 19, cy + 4, 11, 10);
+            g.DrawRectangle(pen, cx + 19, cy + 4, 11, 10);
         }
 
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
