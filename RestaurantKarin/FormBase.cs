@@ -14,6 +14,7 @@ namespace RestaurantKarin
         private Panel PanelContenedor;
         private Button BtnToggleMenu;
         private Button btnLogOut;
+        private PictureBox _logoBadge;
         private List<Button> menuButtons = new List<Button>();
 
         private System.Windows.Forms.Timer animacionTimer;
@@ -74,20 +75,32 @@ namespace RestaurantKarin
                 if (btnLogOut != null) { btnLogOut.Location = new Point(0, PanelMenu.Height - 60); btnLogOut.Width = PanelMenu.Width; }
             };
 
+            // ── Toggle button (top-right) ─────────────────────────────────────
             BtnToggleMenu = new Button();
             BtnToggleMenu.Text = "◄";
-            BtnToggleMenu.Font = new Font("Segoe UI", 14, FontStyle.Bold);
+            BtnToggleMenu.Font = new Font("Segoe UI", 10, FontStyle.Bold);
             BtnToggleMenu.ForeColor = Color.White;
             BtnToggleMenu.BackColor = Color.Transparent;
             BtnToggleMenu.FlatStyle = FlatStyle.Flat;
             BtnToggleMenu.FlatAppearance.BorderSize = 0;
-            BtnToggleMenu.Size = new Size(40, 40);
-            BtnToggleMenu.Location = new Point(ExpandedWidth - 45, 10);
+            BtnToggleMenu.FlatAppearance.MouseOverBackColor = Color.FromArgb(40, 255, 255, 255);
+            BtnToggleMenu.Size = new Size(30, 26);
+            BtnToggleMenu.Location = new Point(ExpandedWidth - 34, 8);
             BtnToggleMenu.Cursor = Cursors.Hand;
             BtnToggleMenu.Click += (s, e) => { if (!isAnimating) { isAnimating = true; animacionTimer.Start(); } };
             PanelMenu.Controls.Add(BtnToggleMenu);
 
-            int startY = 80, spacing = 65;
+            // ── Logo badge (centered, below toggle) ───────────────────────────
+            _logoBadge = new PictureBox();
+            _logoBadge.Size = new Size(72, 72);
+            _logoBadge.Location = new Point((ExpandedWidth - 72) / 2, 40);
+            _logoBadge.SizeMode = PictureBoxSizeMode.Zoom;
+            _logoBadge.BackColor = Color.Transparent;
+            _logoBadge.Cursor = Cursors.Hand;
+            try { _logoBadge.Image = new Icon(Path.Combine(Application.StartupPath, "Imgs", "icono.ico")).ToBitmap(); } catch { }
+            PanelMenu.Controls.Add(_logoBadge);
+
+            int startY = 128, spacing = 65;
 
             // Pedidos
             if (Sesion.TienePermiso("Pedidos"))
@@ -193,22 +206,32 @@ namespace RestaurantKarin
                 {
                     BtnToggleMenu.Text = "►";
                     foreach (var btn in menuButtons) { btn.Text = ""; btn.ImageAlign = ContentAlignment.MiddleCenter; btn.Padding = new Padding(0); }
+                    _logoBadge.Size = new Size(44, 44);
                 }
                 PanelMenu.Width -= AnimationSpeed;
-                BtnToggleMenu.Location = new Point((PanelMenu.Width - 40) / 2, 10);
-                if (PanelMenu.Width <= CollapsedWidth) { PanelMenu.Width = CollapsedWidth; isMenuExpanded = false; isAnimating = false; animacionTimer.Stop(); }
+                BtnToggleMenu.Location = new Point(PanelMenu.Width - 34, 8);
+                _logoBadge.Location = new Point((PanelMenu.Width - _logoBadge.Width) / 2, 40);
+                if (PanelMenu.Width <= CollapsedWidth)
+                {
+                    PanelMenu.Width = CollapsedWidth;
+                    BtnToggleMenu.Location = new Point(CollapsedWidth - 34, 8);
+                    _logoBadge.Location = new Point((CollapsedWidth - _logoBadge.Width) / 2, 40);
+                    isMenuExpanded = false; isAnimating = false; animacionTimer.Stop();
+                }
             }
             else
             {
                 PanelMenu.Width += AnimationSpeed;
-                int posX = PanelMenu.Width - 45;
-                BtnToggleMenu.Location = new Point(posX > 0 ? posX : 0, 10);
+                BtnToggleMenu.Location = new Point(PanelMenu.Width - 34, 8);
+                _logoBadge.Location = new Point((PanelMenu.Width - _logoBadge.Width) / 2, 40);
                 if (PanelMenu.Width >= ExpandedWidth)
                 {
                     PanelMenu.Width = ExpandedWidth;
                     BtnToggleMenu.Text = "◄";
-                    BtnToggleMenu.Location = new Point(ExpandedWidth - 45, 10);
+                    BtnToggleMenu.Location = new Point(ExpandedWidth - 34, 8);
                     foreach (var btn in menuButtons) { btn.Text = "   " + btn.Tag.ToString(); btn.ImageAlign = ContentAlignment.MiddleLeft; btn.Padding = new Padding(15, 0, 0, 0); }
+                    _logoBadge.Size = new Size(72, 72);
+                    _logoBadge.Location = new Point((ExpandedWidth - 72) / 2, 40);
                     isMenuExpanded = true; isAnimating = false; animacionTimer.Stop();
                 }
             }

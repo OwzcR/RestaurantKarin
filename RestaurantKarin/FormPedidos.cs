@@ -34,6 +34,7 @@ namespace RestaurantKarin
         private Panel PanelContenedor = null!;
         private Button BtnToggleMenu = null!;
         private Button BtnLogOut = null!;
+        private PictureBox _logoBadge = null!;
         private readonly List<Button> _menuButtons = new();
         private FlowLayoutPanel FlowActivas = null!;
         private FlowLayoutPanel FlowDisponibles = null!;
@@ -140,33 +141,34 @@ namespace RestaurantKarin
             };
 
             // ── Logo badge ────────────────────────────────────────────────────
-            var badge = new Label
+            _logoBadge = new PictureBox
             {
-                Size = new Size(56, 56),
-                Location = new Point((MenuExpanded - 56) / 2, 16),
-                Text = "KARIN",
-                Font = new Font("Segoe UI", 8, FontStyle.Bold),
-                ForeColor = Color.White,
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.FromArgb(200, 168, 75),
+                Size = new Size(72, 72),
+                Location = new Point((MenuExpanded - 72) / 2, 10),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Transparent,
                 Cursor = Cursors.Hand
             };
-            var circlePath = new GraphicsPath();
-            circlePath.AddEllipse(0, 0, 55, 55);
-            badge.Region = new Region(circlePath);
-            PanelMenu.Controls.Add(badge);
+            try
+            {
+                _logoBadge.Image = Image.FromFile(Path.Combine(Application.StartupPath, "Imgs", "logo.png"));
+            }
+            catch { }
+            var logoBadgePath = new GraphicsPath();
+            logoBadgePath.AddEllipse(0, 0, 71, 71);
+            _logoBadge.Region = new Region(logoBadgePath);
+            PanelMenu.Controls.Add(_logoBadge);
 
             // ── Toggle button ─────────────────────────────────────────────────
             BtnToggleMenu = new Button
             {
                 Text = "◄",
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.Transparent,
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(32, 32),
-                // FIX: position relative to collapsed width so it's always visible
-                Location = new Point(MenuExpanded - 38, 88),
+                Size = new Size(28, 28),
+                Location = new Point(MenuExpanded - 32, 28),
                 Cursor = Cursors.Hand
             };
             BtnToggleMenu.FlatAppearance.BorderSize = 0;
@@ -175,7 +177,7 @@ namespace RestaurantKarin
             PanelMenu.Controls.Add(BtnToggleMenu);
 
             // ── Nav items ─────────────────────────────────────────────────────
-            int y = 88, step = 52;
+            int y = 92, step = 52;
             _menuButtons.Add(CreateNavButton("Pedidos", "pedidos.png", y));
             _menuButtons.Add(CreateNavButton("Cuentas", "cuentas.png", y + step));
             _menuButtons.Add(CreateNavButton("Inventario", "inventario.png", y + step * 2));
@@ -615,8 +617,13 @@ namespace RestaurantKarin
             {
                 PanelMenu.Width = MenuExpanded;
                 BtnToggleMenu.Text = "◄";
-                // FIX: restore correct location after expand
-                BtnToggleMenu.Location = new Point(MenuExpanded - 38, 88);
+                BtnToggleMenu.Location = new Point(MenuExpanded - 32, 28);
+
+                _logoBadge.Size = new Size(72, 72);
+                _logoBadge.Location = new Point((MenuExpanded - 72) / 2, 10);
+                var ep = new GraphicsPath();
+                ep.AddEllipse(0, 0, 71, 71);
+                _logoBadge.Region = new Region(ep);
 
                 foreach (var btn in _menuButtons)
                 {
@@ -629,8 +636,13 @@ namespace RestaurantKarin
             {
                 PanelMenu.Width = MenuCollapsed;
                 BtnToggleMenu.Text = "►";
-                // FIX: center toggle inside collapsed sidebar
-                BtnToggleMenu.Location = new Point((MenuCollapsed - 32) / 2, 88);
+                BtnToggleMenu.Location = new Point(MenuCollapsed - 32, 28);
+
+                _logoBadge.Size = new Size(40, 40);
+                _logoBadge.Location = new Point((MenuCollapsed - 40) / 2, 14);
+                var cp = new GraphicsPath();
+                cp.AddEllipse(0, 0, 39, 39);
+                _logoBadge.Region = new Region(cp);
 
                 foreach (var btn in _menuButtons)
                 {
