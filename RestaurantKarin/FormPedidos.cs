@@ -9,9 +9,7 @@ using System.Windows.Forms;
 
 namespace RestaurantKarin
 {
-    // ─────────────────────────────────────────────────────────────────────────
-    //  Model (renombrado a MesaModel para evitar ambigüedades con otra clase Mesa)
-    // ─────────────────────────────────────────────────────────────────────────
+
     public class MesaModel
     {
         public int Id { get; set; }
@@ -24,9 +22,7 @@ namespace RestaurantKarin
         public int PropinaPercent { get; set; }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  Form
-    // ─────────────────────────────────────────────────────────────────────────
+    
     public partial class Pedidos : Form
     {
         // ── Controls ─────────────────────────────────────────────────────────
@@ -68,7 +64,6 @@ namespace RestaurantKarin
         private static readonly Font FontBold10 = new("Segoe UI", 10, FontStyle.Bold);
         private static readonly Font FontBold8 = new("Segoe UI", 8, FontStyle.Bold);
 
-        // ─────────────────────────────────────────────────────────────────────
         public Pedidos()
         {
             this.DoubleBuffered = true;
@@ -76,22 +71,64 @@ namespace RestaurantKarin
             SetupUI();
         }
 
-        // ── Sample / seed data ────────────────────────────────────────────────
+        
         private void InitializeMesaData()
         {
-            _mesas = new List<MesaModel>
+            try
             {
-                new() { Id=5, Nombre="MESA : 5", CapacidadMax=4, Activa=true,  Personas=2, HoraLlegada=DateTime.Now.AddMinutes(-30), Cuenta=264, PropinaPercent=10 },
-                new() { Id=3, Nombre="MESA : 3", CapacidadMax=4, Activa=true,  Personas=2, HoraLlegada=DateTime.Now.AddHours(-1),    Cuenta=264, PropinaPercent=10 },
-                new() { Id=1, Nombre="MESA : 1", CapacidadMax=2, Activa=false },
-                new() { Id=2, Nombre="MESA : 2", CapacidadMax=4, Activa=false },
-                new() { Id=4, Nombre="MESA : 4", CapacidadMax=5, Activa=false },
+                _mesas = MesaRepository.GetAll() ?? new List<MesaModel>();
+                if (_mesas == null || !_mesas.Any())
+                {
+                    _mesas = GetSampleMesas();
+                }
+            }
+            catch
+            {
+                _mesas = GetSampleMesas();
+            }
+        }
+
+        private static List<MesaModel> GetSampleMesas()
+        {
+            return new List<MesaModel>
+            {
+                new MesaModel
+                {
+                    Id = 1,
+                    Nombre = "Mesa 1",
+                    CapacidadMax = 4,
+                    Activa = true,
+                    Personas = 2,
+                    HoraLlegada = DateTime.Now.AddMinutes(-45),
+                    Cuenta = 120.50m,
+                    PropinaPercent = 10
+                },
+                new MesaModel
+                {
+                    Id = 2,
+                    Nombre = "Mesa 2",
+                    CapacidadMax = 6,
+                    Activa = false,
+                    Personas = 0,
+                    HoraLlegada = DateTime.MinValue,
+                    Cuenta = 0m,
+                    PropinaPercent = 10
+                },
+                new MesaModel
+                {
+                    Id = 3,
+                    Nombre = "Mesa 3",
+                    CapacidadMax = 2,
+                    Activa = true,
+                    Personas = 1,
+                    HoraLlegada = DateTime.Now.AddMinutes(-15),
+                    Cuenta = 45.00m,
+                    PropinaPercent = 10
+                }
             };
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        //  Top-level UI assembly
-        // ─────────────────────────────────────────────────────────────────────
+   
         private void SetupUI()
         {
             Text = "Pedidos — Restaurante Karin";
@@ -112,9 +149,7 @@ namespace RestaurantKarin
             BuildMesasUI();
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        //  Sidebar
-        // ─────────────────────────────────────────────────────────────────────
+     
         private void BuildSidebar()
         {
             PanelMenu = new Panel { Dock = DockStyle.Left, Width = MenuExpanded };
@@ -156,7 +191,7 @@ namespace RestaurantKarin
             badge.Region = new Region(circlePath);
             PanelMenu.Controls.Add(badge);
 
-            // ── Toggle button ─────────────────────────────────────────────────
+         
             BtnToggleMenu = new Button
             {
                 Text = "◄",
@@ -165,7 +200,7 @@ namespace RestaurantKarin
                 BackColor = Color.Transparent,
                 FlatStyle = FlatStyle.Flat,
                 Size = new Size(32, 32),
-                // FIX: position relative to collapsed width so it's always visible
+               
                 Location = new Point(MenuExpanded - 38, 88),
                 Cursor = Cursors.Hand
             };
@@ -523,14 +558,26 @@ namespace RestaurantKarin
             return row;
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        //  Business-logic actions  (replace MessageBox with real logic)
-        // ─────────────────────────────────────────────────────────────────────
+      
         private void OnAgregarPedido(MesaModel m)
         {
-            // TODO: open AgregarPedido sub-form passing m.Id
-            MessageBox.Show($"Agregar pedido — Mesa {m.Id}", "Pedidos",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // Obtener el id_cuenta activo de esta mesa
+            int idCuenta = CuentaRepository.ObtenerIdCuentaAbierta(m.Id);
+
+            if (idCuenta <= 0)
+            {
+                MessageBox.Show("Esta mesa no tiene una cuenta abierta.\nAbre la cuenta primero.",
+                    "Sin cuenta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using var form = new FormAgregarPedido(m.Id, idCuenta);
+            if (form.ShowDialog(this) == DialogResult.OK)
+            {
+                // Refresca la pantalla para mostrar el nuevo total
+                _mesas = MesaRepository.GetAll();
+                RefreshMesaCards();
+            }
         }
 
         private void OnVerDetalles(MesaModel m)
@@ -543,25 +590,33 @@ namespace RestaurantKarin
 
         private void OnCerrarCuenta(MesaModel m)
         {
-            var r = MessageBox.Show($"¿Cerrar cuenta de Mesa {m.Id}?\nTotal: {m.Cuenta:C}",
+            var r = MessageBox.Show(
+                $"¿Cerrar cuenta de Mesa {m.Id}?\nTotal: {m.Cuenta:C}",
                 "Cerrar Cuenta", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
             if (r == DialogResult.Yes)
             {
-                m.Activa = false;
+                CuentaRepository.CerrarCuenta(m.Id);
+
+                // Refresca desde la BD
+                _mesas = MesaRepository.GetAll();
                 RefreshMesaCards();
             }
         }
 
         private void OnAbrirCuenta(MesaModel m)
         {
-            var r = MessageBox.Show($"¿Abrir cuenta para Mesa {m.Id} ({m.CapacidadMax} personas)?",
+            var r = MessageBox.Show(
+                $"¿Abrir cuenta para Mesa {m.Id} ({m.CapacidadMax} personas)?",
                 "Abrir Cuenta", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
             if (r == DialogResult.Yes)
             {
-                m.Activa = true;
-                m.HoraLlegada = DateTime.Now;
-                m.Personas = 1;
-                m.Cuenta = 0;
+                // idUsuario = 1 por ahora; más adelante pasa el usuario de sesión
+                CuentaRepository.AbrirCuenta(m.Id, idUsuario: 1);
+
+                // Refresca desde la BD para reflejar el cambio real
+                _mesas = MesaRepository.GetAll();
                 RefreshMesaCards();
             }
         }
