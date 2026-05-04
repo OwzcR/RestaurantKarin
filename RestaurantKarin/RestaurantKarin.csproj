@@ -77,7 +77,7 @@
     <!-- Además intentar detener por nombre del proyecto (por si usa otro nombre de proceso) -->
     <Exec Command="taskkill /F /IM $(MSBuildProjectName).exe /T" ContinueOnError="true" />
     <!-- Pequeña espera para dar tiempo al SO a liberar el handle antes de copiar -->
-    <Exec Command="ping -n 2 127.0.0.1 &gt;NUL" Condition="'$(SkipKillWait)' != 'true'"/>
+    <Exec Command="ping -n 2 127.0.0.1 &gt;NUL" Condition="'$(SkipKillWait)' != 'true'" />
   </Target>
 
 </Project>

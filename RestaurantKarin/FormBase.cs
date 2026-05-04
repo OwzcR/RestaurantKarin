@@ -158,7 +158,16 @@ namespace RestaurantKarin
 
             // Reportes
             if (Sesion.TienePermiso("Reportes"))
-                menuButtons.Add(CrearBotonMenu("Reportes", "reportes.png", startY + spacing * ContarBotones()));
+            {
+                Button btnReportes = CrearBotonMenu("Reportes", "reportes.png", startY + spacing * ContarBotones());
+                btnReportes.Click += (s, e) =>
+                {
+                    PanelContenedor.Controls.Clear();
+                    var reportes = new FormReportes { Dock = DockStyle.Fill };
+                    PanelContenedor.Controls.Add(reportes);
+                };
+                menuButtons.Add(btnReportes);
+            }
 
             // Ajustes — solo admin
             if (Sesion.EsAdmin)
