@@ -49,7 +49,7 @@ namespace RestaurantKarin
             this.MinimumSize = new Size(1100, 740);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.None;
-            this.BackColor = C_BG;
+            this.BackColor = C_GRAD_BOT;
             this.Region = System.Drawing.Region.FromHrgn(
                 CreateRoundRectRgn(0, 0, Width, Height, 14, 14));
 
@@ -170,7 +170,7 @@ namespace RestaurantKarin
             // ── Área de contenido ─────────────────────────────
             _content = new Panel();
             _content.Size = new Size(860, 682); _content.Location = new Point(240, 58);
-            _content.BackColor = C_BG;
+            _content.BackColor = C_GRAD_BOT;
             this.Controls.Add(_content);
 
             nU.Click += (s, e) => { ActivarNav(nU); LoadPage(PageUsuarios()); };
@@ -185,7 +185,7 @@ namespace RestaurantKarin
         // ════════════════════════════════════════════════════════
         private Panel PageUsuarios()
         {
-            Panel page = new Panel(); page.BackColor = C_BG;
+            Panel page = new Panel(); page.BackColor = C_GRAD_BOT;
 
             // ── Encabezado de página ──
             PageHeader(page, "Gestión de Usuarios",
@@ -336,7 +336,7 @@ namespace RestaurantKarin
         // ════════════════════════════════════════════════════════
         private Panel PagePin()
         {
-            Panel page = new Panel(); page.BackColor = C_BG;
+            Panel page = new Panel(); page.BackColor = C_GRAD_BOT;
             PageHeader(page, "Cambiar PIN",
                 "Reasigna el PIN de acceso de cualquier usuario del sistema");
 
@@ -460,12 +460,12 @@ namespace RestaurantKarin
         {
             Label t = new Label();
             t.Text = titulo; t.Font = new Font("Segoe UI", 17, FontStyle.Bold);
-            t.ForeColor = C_TEXT1; t.Location = new Point(24, 18);
+            t.ForeColor = Color.White; t.Location = new Point(24, 18);
             t.Size = new Size(810, 32); page.Controls.Add(t);
 
             Label s = new Label();
             s.Text = sub; s.Font = new Font("Segoe UI", 10);
-            s.ForeColor = C_TEXT2; s.Location = new Point(24, 52);
+            s.ForeColor = Color.FromArgb(180, 210, 230); s.Location = new Point(24, 52);
             s.Size = new Size(810, 20); page.Controls.Add(s);
 
             Panel acc = new Panel();
