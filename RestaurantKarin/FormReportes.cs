@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Reflection;
 using System.Windows.Forms;
 
 namespace RestaurantKarin
@@ -44,8 +45,15 @@ namespace RestaurantKarin
             BuildUI();
         }
 
+        private static void SetDoubleBuffered(Control c) =>
+            typeof(Control).InvokeMember("DoubleBuffered",
+                BindingFlags.SetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
+                null, c, new object[] { true });
+
         private void BuildUI()
         {
+            this.SuspendLayout();
+
             // ── BackColor Transparent — hereda del contenedor padre (FormBase) ──
             this.BackColor = Color.Transparent;
             this.Padding = new Padding(16);
@@ -55,8 +63,9 @@ namespace RestaurantKarin
             {
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
-                BackColor = Color.Transparent  // transparente para ver el fondo
+                BackColor = Color.Transparent
             };
+            SetDoubleBuffered(scroll);
             this.Controls.Add(scroll);
 
             // ── Panel envolvente (Fill) — sirve para centrar ───────────────
@@ -65,6 +74,7 @@ namespace RestaurantKarin
                 Dock = DockStyle.Fill,
                 BackColor = Color.Transparent
             };
+            SetDoubleBuffered(wrapper);
             scroll.Controls.Add(wrapper);
 
             // ── Panel de contenido con ancho fijo ─────────────────────────
@@ -264,6 +274,8 @@ namespace RestaurantKarin
 
             btnPDF.Click += (s, e) => MessageBox.Show("Exportar a PDF", "Reportes");
             btnXLS.Click += (s, e) => MessageBox.Show("Exportar a Excel", "Reportes");
+
+            this.ResumeLayout(false);
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -422,8 +434,8 @@ namespace RestaurantKarin
         {
             int w = Math.Max(ctrl.Width, 1);
             int h = Math.Max(ctrl.Height, 1);
-            var path = new GraphicsPath();
             int d = radius * 2;
+            using var path = new GraphicsPath();
             path.AddArc(0, 0, d, d, 180, 90);
             path.AddArc(w - d, 0, d, d, 270, 90);
             path.AddArc(w - d, h - d, d, d, 0, 90);
@@ -565,43 +577,30 @@ namespace RestaurantKarin
         {
             try
             {
-                // Validar conexión a BD
                 if (!DatabaseHelper.ValidarConexion())
                 {
-                    MessageBox.Show("❌ No se puede conectar a la base de datos.", "Error de Conexión", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("No se puede conectar a la base de datos.", "Error de Conexión", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
 
                 DateTime fechaInicio = _dtpInicio.Value.Date;
                 DateTime fechaFin = _dtpFin.Value.Date;
 
-                // Obtener datos de los reportes
-                DataTable dtVentas = DatabaseHelper.ObtenerReporteVentas(fechaInicio, fechaFin);
+                DataTable dtVentas    = DatabaseHelper.ObtenerReporteVentas(fechaInicio, fechaFin);
                 DataTable dtProductos = DatabaseHelper.ObtenerReporteProductosMasVendidos(fechaInicio, fechaFin);
                 DataTable dtEmpleados = DatabaseHelper.ObtenerReporteIngresosPorEmpleado(fechaInicio, fechaFin);
                 DataTable dtInventario = DatabaseHelper.ObtenerReporteConsumoInventario(fechaInicio, fechaFin);
 
-                // Mostrar debug info
-                string debugInfo = $"Diagnóstico de Datos:\n" +
-                    $"📊 Ventas: {dtVentas?.Rows.Count ?? 0} registros\n" +
-                    $"📦 Productos: {dtProductos?.Rows.Count ?? 0} registros\n" +
-                    $"👤 Empleados: {dtEmpleados?.Rows.Count ?? 0} registros\n" +
-                    $"📋 Inventario: {dtInventario?.Rows.Count ?? 0} registros";
-
-                System.Diagnostics.Debug.WriteLine(debugInfo);
-                Console.WriteLine(debugInfo);
-
-                // Procesar y mostrar datos
+                this.SuspendLayout();
                 ProcesarReporteVentas(dtVentas);
                 ProcesarReporteProductos(dtProductos);
                 ProcesarReporteEmpleados(dtEmpleados);
                 ProcesarReporteInventario(dtInventario);
-
-                MessageBox.Show($"✅ Reportes cargados exitosamente.\n\n{debugInfo}", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                this.ResumeLayout(false);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"❌ Error al cargar reportes: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error al cargar reportes: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -651,10 +650,9 @@ namespace RestaurantKarin
                 return;
             }
 
-            // Limpiar controles previos
+            _cardProd.SuspendLayout();
             _cardProd.Controls.Clear();
 
-            // Agregar encabezado
             var hdr = new Panel
             {
                 Location = new Point(0, 0),
@@ -662,7 +660,6 @@ namespace RestaurantKarin
                 BackColor = CHeaderCard
             };
             _cardProd.Controls.Add(hdr);
-
             hdr.Controls.Add(new Label
             {
                 Text = "Productos Más Vendidos",
@@ -674,36 +671,29 @@ namespace RestaurantKarin
                 BackColor = Color.Transparent
             });
 
-            // Mostrar hasta 4 productos
             int maxProductos = Math.Min(4, dtProductos.Rows.Count);
             for (int i = 0; i < maxProductos; i++)
             {
                 DataRow row = dtProductos.Rows[i];
                 string nombre = row["Producto"].ToString();
                 int cantidad = Convert.ToInt32(row["CantidadVendida"]);
-
                 AddProductRow(_cardProd, nombre, cantidad, maxProductos * 15, i);
             }
 
-            // Calcular total de ventas
             int totalProductosVendidos = 0;
             foreach (DataRow row in dtProductos.Rows)
-            {
                 totalProductosVendidos += Convert.ToInt32(row["CantidadVendida"]);
-            }
 
-            // Agregar etiqueta de total
-            var lblTotal = new Label
+            _cardProd.Controls.Add(new Label
             {
                 Text = $"{totalProductosVendidos} Ventas Totales",
                 Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 ForeColor = CTexto,
                 AutoSize = true,
                 Location = new Point(14, _cardProd.Height - 35)
-            };
-            _cardProd.Controls.Add(lblTotal);
+            });
 
-            System.Diagnostics.Debug.WriteLine($"✓ REPORTE PRODUCTOS: Actualizado - {maxProductos} productos mostrados ({totalProductosVendidos} ventas totales)");
+            _cardProd.ResumeLayout(false);
         }
 
         /// <summary>
@@ -717,18 +707,16 @@ namespace RestaurantKarin
                 return;
             }
 
-            // Limpiar controles previos (excepto botones de exportación)
             var botonesExportacion = new List<Button>();
             foreach (Control ctrl in _cardEmp.Controls)
             {
                 if (ctrl is Button btn && (btn.Text.Contains("PDF") || btn.Text.Contains("EXCEL")))
-                {
                     botonesExportacion.Add(btn);
-                }
             }
+
+            _cardEmp.SuspendLayout();
             _cardEmp.Controls.Clear();
 
-            // Agregar encabezado
             var hdr = new Panel
             {
                 Location = new Point(0, 0),
@@ -736,7 +724,6 @@ namespace RestaurantKarin
                 BackColor = CHeaderCard
             };
             _cardEmp.Controls.Add(hdr);
-
             hdr.Controls.Add(new Label
             {
                 Text = "Ingresos por Empleado",
@@ -748,29 +735,23 @@ namespace RestaurantKarin
                 BackColor = Color.Transparent
             });
 
-            // Mostrar hasta 4 empleados
             int maxEmpleados = Math.Min(4, dtEmpleados.Rows.Count);
             for (int i = 0; i < maxEmpleados; i++)
             {
                 DataRow row = dtEmpleados.Rows[i];
                 string nombre = row["Empleado"].ToString();
                 decimal ingreso = Convert.ToDecimal(row["IngresoGenerado"]);
-
-                // Calcular porcentaje (si hay múltiples empleados)
                 int porcentaje = maxEmpleados > 0 ? (i + 1) * (100 / maxEmpleados) : 0;
-                string ingresoFormato = $"${ingreso:F2}";
-
-                AddEmployeeRow(_cardEmp, nombre, ingresoFormato, porcentaje, i);
+                AddEmployeeRow(_cardEmp, nombre, $"${ingreso:F2}", porcentaje, i);
             }
 
-            // Restaurar botones de exportación
             foreach (var btn in botonesExportacion)
             {
                 _cardEmp.Controls.Add(btn);
                 btn.BringToFront();
             }
 
-            System.Diagnostics.Debug.WriteLine($"✓ REPORTE EMPLEADOS: Actualizado - {maxEmpleados} empleados mostrados");
+            _cardEmp.ResumeLayout(false);
         }
 
         /// <summary>
@@ -784,10 +765,9 @@ namespace RestaurantKarin
                 return;
             }
 
-            // Limpiar controles previos
+            _cardInv.SuspendLayout();
             _cardInv.Controls.Clear();
 
-            // Agregar encabezado
             var hdr = new Panel
             {
                 Location = new Point(0, 0),
@@ -795,7 +775,6 @@ namespace RestaurantKarin
                 BackColor = CHeaderCard
             };
             _cardInv.Controls.Add(hdr);
-
             hdr.Controls.Add(new Label
             {
                 Text = "Consumo de Inventario",
@@ -807,38 +786,31 @@ namespace RestaurantKarin
                 BackColor = Color.Transparent
             });
 
-            // Calcular consumo total y costo
             decimal costoTotal = 0;
             decimal stockTotal = 0;
             int maxInsumos = Math.Min(4, dtInventario.Rows.Count);
 
             foreach (DataRow row in dtInventario.Rows)
             {
-                decimal costoUnitario = row["CostoUnitario"] != DBNull.Value ? Convert.ToDecimal(row["CostoUnitario"]) : 0;
                 decimal stockActual = row["StockActual"] != DBNull.Value ? Convert.ToDecimal(row["StockActual"]) : 0;
-                costoTotal += Convert.ToDecimal(row["CostoTotal"] ?? 0);
+                costoTotal += row["CostoTotal"] != DBNull.Value ? Convert.ToDecimal(row["CostoTotal"]) : 0;
                 stockTotal += stockActual;
             }
 
-            // Mostrar hasta 4 insumos
             for (int i = 0; i < maxInsumos; i++)
             {
                 DataRow row = dtInventario.Rows[i];
-                string nombre = row["Insumo"].ToString();  // Corregido: era "Nombre", debe ser "Insumo"
-                int stock = Convert.ToInt32(row["StockActual"] ?? 0);
-                int maxStock = stock > 0 ? stock : 100;  // Valor por defecto para la barra
-
+                string nombre = row["Insumo"].ToString();
+                int stock = Convert.ToInt32(row["StockActual"] != DBNull.Value ? row["StockActual"] : 0);
+                int maxStock = stock > 0 ? stock : 100;
                 AddProductRow(_cardInv, nombre, stock, maxStock, i);
             }
 
-            // Calcular porcentaje de consumo
-            int porcentajeConsumido = stockTotal > 0 ? (int)((costoTotal / (stockTotal * 0.5m)) * 100) : 0;
-            porcentajeConsumido = Math.Min(100, porcentajeConsumido);  // Limitar a 100%
-
+            int porcentajeConsumido = stockTotal > 0 ? Math.Min(100, (int)((costoTotal / (stockTotal * 0.5m)) * 100)) : 0;
             _lblInventarioConsumido.Text = $"{porcentajeConsumido}% del Inventario Consumido";
             _cardInv.Controls.Add(_lblInventarioConsumido);
 
-            System.Diagnostics.Debug.WriteLine($"✓ REPORTE INVENTARIO: Actualizado - {maxInsumos} insumos mostrados ({porcentajeConsumido}% consumido)");
+            _cardInv.ResumeLayout(false);
         }
     }
 }

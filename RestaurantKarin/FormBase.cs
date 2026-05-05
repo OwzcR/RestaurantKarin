@@ -135,11 +135,8 @@ namespace RestaurantKarin
                 btnInv.Click += (s, e) =>
                 {
                     PanelContenedor.Controls.Clear();
-                    FormInventario frm = new FormInventario();
-                    frm.TopLevel = false;
-                    frm.Dock = DockStyle.Fill;
+                    var frm = new FormInventario { Dock = DockStyle.Fill };
                     PanelContenedor.Controls.Add(frm);
-                    frm.Show();
                 };
                 menuButtons.Add(btnInv);
             }

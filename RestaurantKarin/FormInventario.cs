@@ -7,7 +7,7 @@ using System.Configuration;
 
 namespace RestaurantKarin
 {
-    public partial class FormInventario : Form
+    public partial class FormInventario : UserControl
     {
         // Colores y configuración visual
         private Color colorVerdeBorde = Color.FromArgb(88, 160, 166);
@@ -24,10 +24,8 @@ namespace RestaurantKarin
 
         private void SetupUI()
         {
-            // Configuración del Formulario Base
-            this.FormBorderStyle = FormBorderStyle.None;
-            this.BackColor = Color.FromArgb(29, 53, 87);
-            this.Padding = new Padding(40);
+            this.BackColor = Color.Transparent;
+            this.Padding = new Padding(16);
 
             // 1. TARJETA BLANCA PRINCIPAL
             Panel cardPrincipal = new Panel
