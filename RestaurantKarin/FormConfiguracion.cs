@@ -12,17 +12,16 @@ namespace RestaurantKarin
 {
     public partial class FormConfiguracion : Form
     {
-        // ── Paleta coherente con el proyecto ──────────────────
-        private readonly Color C_GRAD_TOP = Color.FromArgb(64, 196, 204); // turquesa sidebar top
-        private readonly Color C_GRAD_BOT = Color.FromArgb(13, 41, 78); // azul sidebar bottom
-        private readonly Color C_ACCENT = Color.FromArgb(64, 196, 204); // turquesa accent
-        private readonly Color C_BG = Color.FromArgb(244, 247, 251); // fondo página
+        private readonly Color C_GRAD_TOP = Color.FromArgb(64, 196, 204);
+        private readonly Color C_GRAD_BOT = Color.FromArgb(13, 41, 78);
+        private readonly Color C_ACCENT = Color.FromArgb(64, 196, 204);
+        private readonly Color C_BG = Color.FromArgb(244, 247, 251);
         private readonly Color C_SURFACE = Color.White;
         private readonly Color C_BORDER = Color.FromArgb(220, 228, 240);
-        private readonly Color C_TEXT1 = Color.FromArgb(13, 41, 78); // texto principal (azul oscuro del proyecto)
-        private readonly Color C_TEXT2 = Color.FromArgb(100, 120, 150); // texto secundario
-        private readonly Color C_PRIMARY = Color.FromArgb(29, 78, 137); // botón primario
-        private readonly Color C_PRIMARY_H = Color.FromArgb(20, 58, 107); // hover primario
+        private readonly Color C_TEXT1 = Color.FromArgb(13, 41, 78);
+        private readonly Color C_TEXT2 = Color.FromArgb(100, 120, 150);
+        private readonly Color C_PRIMARY = Color.FromArgb(29, 78, 137);
+        private readonly Color C_PRIMARY_H = Color.FromArgb(20, 58, 107);
         private readonly Color C_DANGER = Color.FromArgb(210, 45, 45);
         private readonly Color C_DANGER_BG = Color.FromArgb(255, 240, 240);
         private readonly Color C_SUCCESS = Color.FromArgb(22, 155, 70);
@@ -32,11 +31,102 @@ namespace RestaurantKarin
 
         private Panel _content;
         private Button _activeNav;
+        private Form _overlayForm;  // Usar un FORM en lugar de Panel
 
         public FormConfiguracion()
         {
             InitializeComponent();
             BuildShell();
+        }
+
+        // ── MÉTODO PARA OSCURECER EL FONDO (se ve lo de atrás) ──
+        private void OscurecerFondo(bool oscurecer)
+        {
+            if (oscurecer)
+            {
+                if (_overlayForm != null) return;
+
+                // Buscar el formulario padre
+                Form padre = this.Owner;
+                if (padre == null)
+                {
+                    foreach (Form f in Application.OpenForms)
+                    {
+                        if (f != this && f.Visible)
+                        {
+                            padre = f;
+                            break;
+                        }
+                    }
+                }
+
+                if (padre == null) return;
+
+                // Crear un formulario overlay semitransparente
+                _overlayForm = new Form();
+                _overlayForm.FormBorderStyle = FormBorderStyle.None;
+                _overlayForm.ShowInTaskbar = false;
+                _overlayForm.StartPosition = FormStartPosition.Manual;
+                _overlayForm.BackColor = Color.FromArgb(13, 41, 78);
+                _overlayForm.Opacity = 0.65;  // 65% opaco - se ve lo que hay detrás
+                _overlayForm.Size = padre.Size;
+                _overlayForm.Location = padre.Location;
+                _overlayForm.Owner = padre;
+
+                // Mostrar el overlay DETRÁS de este formulario pero sobre el padre
+                _overlayForm.Show(padre);
+                _overlayForm.SendToBack();  // Enviar detrás
+
+                // Traer este formulario al frente
+                this.BringToFront();
+
+                // Sincronizar movimiento y tamaño
+                padre.LocationChanged += Padre_LocationChanged;
+                padre.Resize += Padre_Resized;
+            }
+            else
+            {
+                if (_overlayForm != null)
+                {
+                    Form padre = this.Owner;
+                    if (padre != null)
+                    {
+                        padre.LocationChanged -= Padre_LocationChanged;
+                        padre.Resize -= Padre_Resized;
+                    }
+                    _overlayForm.Close();
+                    _overlayForm.Dispose();
+                    _overlayForm = null;
+                }
+            }
+        }
+
+        private void Padre_LocationChanged(object sender, EventArgs e)
+        {
+            if (_overlayForm != null && sender is Form padre)
+            {
+                _overlayForm.Location = padre.Location;
+            }
+        }
+
+        private void Padre_Resized(object sender, EventArgs e)
+        {
+            if (_overlayForm != null && sender is Form padre)
+            {
+                _overlayForm.Size = padre.Size;
+            }
+        }
+
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+            OscurecerFondo(true);
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            OscurecerFondo(false);
+            base.OnFormClosed(e);
         }
 
         // ════════════════════════════════════════════════════════
@@ -53,7 +143,6 @@ namespace RestaurantKarin
             this.Region = System.Drawing.Region.FromHrgn(
                 CreateRoundRectRgn(0, 0, Width, Height, 14, 14));
 
-            // ── SIDEBAR 240px ─────────────────────────────────
             Panel sb = new Panel();
             sb.Size = new Size(240, 740); sb.Location = Point.Empty;
             DoubleBufferPanel(sb);
@@ -65,21 +154,18 @@ namespace RestaurantKarin
             };
             this.Controls.Add(sb);
 
-            // Logo — más grande como pediste
             PictureBox logo = new PictureBox();
             logo.Size = new Size(80, 80); logo.Location = new Point(80, 24);
             logo.SizeMode = PictureBoxSizeMode.Zoom; logo.BackColor = Color.Transparent;
             try { logo.Image = Image.FromFile(Path.Combine(Application.StartupPath, "Imgs", "icono.ico")); } catch { }
             sb.Controls.Add(logo);
 
-            // Título app
             Label lApp = new Label();
             lApp.Text = "AJUSTES"; lApp.Font = new Font("Segoe UI", 11, FontStyle.Bold);
             lApp.ForeColor = Color.White; lApp.Size = new Size(240, 24);
             lApp.Location = new Point(0, 112); lApp.TextAlign = ContentAlignment.MiddleCenter;
             sb.Controls.Add(lApp);
 
-            // Chip usuario
             Label lUser = new Label();
             lUser.Text = "● " + Sesion.Nombre;
             lUser.Font = new Font("Segoe UI", 9, FontStyle.Bold);
@@ -88,7 +174,6 @@ namespace RestaurantKarin
             lUser.TextAlign = ContentAlignment.MiddleCenter;
             lUser.BackColor = Color.FromArgb(30, 255, 255, 255);
             sb.Controls.Add(lUser);
-            // Redondear chip
             lUser.Paint += (s, e) =>
             {
                 var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -97,8 +182,8 @@ namespace RestaurantKarin
                     g.FillPath(br, p);
             };
 
-            // Separador + label menú
             sb.Controls.Add(SbSep(20, 186, 200));
+
             Label lMenu = new Label();
             lMenu.Text = "NAVEGACIÓN"; lMenu.Font = new Font("Segoe UI", 7, FontStyle.Bold);
             lMenu.ForeColor = Color.FromArgb(160, 220, 235);
@@ -109,10 +194,8 @@ namespace RestaurantKarin
             Button nU = SbNavBtn("Usuarios", 220, sb);
             Button nP = SbNavBtn("Cambiar PIN", 268, sb);
 
-            // Separador inferior
             sb.Controls.Add(SbSep(20, 668, 200));
 
-            // Botón cerrar — bien ubicado arriba del borde
             Button btnX = new Button();
             btnX.Text = "✕  Cerrar"; btnX.Size = new Size(200, 42);
             btnX.Location = new Point(20, 678);
@@ -124,7 +207,6 @@ namespace RestaurantKarin
             btnX.Click += (s, e) => this.Close();
             sb.Controls.Add(btnX);
 
-            // ── TOPBAR 58px ───────────────────────────────────
             Panel top = new Panel();
             top.Size = new Size(860, 58); top.Location = new Point(240, 0);
             top.BackColor = C_SURFACE; this.Controls.Add(top); top.BringToFront();
@@ -133,31 +215,12 @@ namespace RestaurantKarin
             lTitle.Text = "Panel de Administración";
             lTitle.Font = new Font("Segoe UI", 13, FontStyle.Bold);
             lTitle.ForeColor = C_TEXT1; lTitle.Location = new Point(28, 0);
-            lTitle.Size = new Size(600, 58); lTitle.TextAlign = ContentAlignment.MiddleLeft;
+            lTitle.Size = new Size(820, 58); lTitle.TextAlign = ContentAlignment.MiddleLeft;
             top.Controls.Add(lTitle);
-
-            // Badge admin
-            Label lBadge = new Label();
-            lBadge.Text = "Admin"; lBadge.Font = new Font("Segoe UI", 8, FontStyle.Bold);
-            lBadge.ForeColor = C_PRIMARY; lBadge.BackColor = Color.FromArgb(220, 234, 255);
-            lBadge.Size = new Size(56, 24); lBadge.Location = new Point(786, 17);
-            lBadge.TextAlign = ContentAlignment.MiddleCenter;
-            top.Controls.Add(lBadge);
-            lBadge.Paint += (s, e) =>
-            {
-                var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
-                using (var p = RoundedPath(new Rectangle(0, 0, lBadge.Width - 1, lBadge.Height - 1), 12))
-                using (var br = new SolidBrush(Color.FromArgb(220, 234, 255)))
-                    g.FillPath(br, p);
-                using (var p = RoundedPath(new Rectangle(0, 0, lBadge.Width - 1, lBadge.Height - 1), 12))
-                using (var pen = new Pen(Color.FromArgb(180, 210, 255)))
-                    g.DrawPath(pen, p);
-            };
 
             top.Paint += (s, e) =>
                 e.Graphics.DrawLine(new Pen(C_BORDER), 0, 57, 860, 57);
 
-            // Arrastre
             bool drag = false; Point dp = Point.Empty;
             top.MouseDown += (s, e) => { drag = true; dp = e.Location; };
             top.MouseMove += (s, e) =>
@@ -167,7 +230,6 @@ namespace RestaurantKarin
             };
             top.MouseUp += (s, e) => drag = false;
 
-            // ── Área de contenido ─────────────────────────────
             _content = new Panel();
             _content.Size = new Size(860, 682); _content.Location = new Point(240, 58);
             _content.BackColor = C_GRAD_BOT;
@@ -187,18 +249,14 @@ namespace RestaurantKarin
         {
             Panel page = new Panel(); page.BackColor = C_GRAD_BOT;
 
-            // ── Encabezado de página ──
             PageHeader(page, "Gestión de Usuarios",
                 "Agrega, edita permisos y elimina usuarios del sistema");
 
-            // ── CARD: Tabla de usuarios ──
             Panel cT = Card(24, 92, 812, 218, page);
-
             CardTitle(cT, "Usuarios registrados", 20, 16);
 
-            // ListView rediseñada
             ListView lv = BuildLV(cT, 20, 46, 772, 158);
-            lv.Columns.Add("", 26);   // dot estado
+            lv.Columns.Add("", 26);
             lv.Columns.Add("Nombre", 188);
             lv.Columns.Add("Rol", 94);
             lv.Columns.Add("Estado", 80);
@@ -206,11 +264,9 @@ namespace RestaurantKarin
             lv.Columns.Add("Pantallas permitidas", 280);
             LoadUsers(lv);
 
-            // ── CARD: Agregar usuario ──
             Panel cA = Card(24, 324, 812, 188, page);
             CardTitle(cA, "Agregar nuevo usuario", 20, 16);
 
-            // Fila inputs Y=50
             FieldLbl("Nombre", cA, 20, 50);
             TextBox tNom = RoundInput(cA, 20, 68, 228);
 
@@ -222,7 +278,6 @@ namespace RestaurantKarin
             FieldLbl("PIN (4 dígitos)", cA, 428, 50);
             TextBox tPin = RoundInput(cA, 428, 68, 118, pwd: true); tPin.MaxLength = 4;
 
-            // Checkboxes permisos
             FieldLbl("Pantallas permitidas", cA, 20, 114);
             var cks = PermChecks(cA, 20, 134);
 
@@ -258,7 +313,6 @@ namespace RestaurantKarin
                 catch (Exception ex) { Toast("Error: " + ex.Message, false); }
             };
 
-            // ── CARD: Editar permisos ──
             Panel cE = Card(24, 526, 812, 142, page);
             CardTitle(cE, "Permisos del usuario seleccionado", 20, 16);
 
@@ -278,7 +332,7 @@ namespace RestaurantKarin
             };
 
             Button btnPerm = BtnSecondary("Guardar permisos", cE, 534, 60, 162, 38);
-            Button btnDel = BtnDanger("Eliminar", cE, 710, 60, 102, 38);
+            Button btnDel = BtnDanger("Eliminar usuario", cE, 710, 60, 102, 38);
 
             btnPerm.Click += (s, e) =>
             {
@@ -295,7 +349,8 @@ namespace RestaurantKarin
                         using (var cmd = new SQLiteCommand(
                             "UPDATE usuario SET permisos=@pe WHERE id_usuario=@id", con))
                         {
-                            cmd.Parameters.AddWithValue("@pe", perms); cmd.Parameters.AddWithValue("@id", id);
+                            cmd.Parameters.AddWithValue("@pe", perms);
+                            cmd.Parameters.AddWithValue("@id", id);
                             cmd.ExecuteNonQuery();
                         }
                     }
@@ -312,8 +367,9 @@ namespace RestaurantKarin
                 int id = GetId(lv);
                 if (rol2 == "Admin" && nom2 == Sesion.Nombre)
                 { Toast("No puedes eliminar tu propia cuenta", false); return; }
-                if (MessageBox.Show($"¿Eliminar a '{nom2}'?", "Confirmar",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+
+                if (!ModalEliminar(nom2)) return;
+
                 try
                 {
                     using (var con = Conn())
@@ -332,6 +388,77 @@ namespace RestaurantKarin
         }
 
         // ════════════════════════════════════════════════════════
+        //  MODAL ELIMINAR
+        // ════════════════════════════════════════════════════════
+        private bool ModalEliminar(string nombreUsuario)
+        {
+            bool resultado = false;
+
+            Form modal = new Form();
+            modal.FormBorderStyle = FormBorderStyle.None;
+            modal.Size = new Size(420, 230);
+            modal.StartPosition = FormStartPosition.CenterParent;
+            modal.BackColor = Color.White;
+            modal.Region = System.Drawing.Region.FromHrgn(
+                CreateRoundRectRgn(0, 0, 420, 230, 14, 14));
+
+            Panel franja = new Panel();
+            franja.Size = new Size(420, 6);
+            franja.Location = Point.Empty;
+            franja.BackColor = C_DANGER;
+            modal.Controls.Add(franja);
+
+            Label ico = new Label();
+            ico.Text = "⚠"; ico.Font = new Font("Segoe UI", 30);
+            ico.ForeColor = C_DANGER;
+            ico.Size = new Size(60, 55); ico.Location = new Point(180, 22);
+            ico.TextAlign = ContentAlignment.MiddleCenter;
+            modal.Controls.Add(ico);
+
+            Label lTit = new Label();
+            lTit.Text = "Eliminar usuario";
+            lTit.Font = new Font("Segoe UI", 13, FontStyle.Bold);
+            lTit.ForeColor = C_TEXT1;
+            lTit.Size = new Size(380, 26); lTit.Location = new Point(20, 86);
+            lTit.TextAlign = ContentAlignment.MiddleCenter;
+            modal.Controls.Add(lTit);
+
+            Label lMsg = new Label();
+            lMsg.Text = $"¿Eliminar a '{nombreUsuario}'?\nEsta acción no se puede deshacer.";
+            lMsg.Font = new Font("Segoe UI", 10);
+            lMsg.ForeColor = C_TEXT2;
+            lMsg.Size = new Size(380, 44); lMsg.Location = new Point(20, 116);
+            lMsg.TextAlign = ContentAlignment.MiddleCenter;
+            modal.Controls.Add(lMsg);
+
+            Button btnCnc = new Button();
+            btnCnc.Text = "Cancelar";
+            btnCnc.Size = new Size(120, 40); btnCnc.Location = new Point(148, 172);
+            btnCnc.FlatStyle = FlatStyle.Flat; btnCnc.FlatAppearance.BorderSize = 1;
+            btnCnc.FlatAppearance.BorderColor = C_BORDER;
+            btnCnc.BackColor = C_SURFACE; btnCnc.ForeColor = C_TEXT1;
+            btnCnc.Font = new Font("Segoe UI", 10); btnCnc.Cursor = Cursors.Hand;
+            btnCnc.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, 120, 40, 8, 8));
+            btnCnc.Click += (s, e) => modal.Close();
+            modal.Controls.Add(btnCnc);
+
+            Button btnElim = new Button();
+            btnElim.Text = "Sí, eliminar";
+            btnElim.Size = new Size(120, 40); btnElim.Location = new Point(280, 172);
+            btnElim.FlatStyle = FlatStyle.Flat; btnElim.FlatAppearance.BorderSize = 0;
+            btnElim.BackColor = C_DANGER; btnElim.ForeColor = Color.White;
+            btnElim.Font = new Font("Segoe UI", 10, FontStyle.Bold); btnElim.Cursor = Cursors.Hand;
+            btnElim.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, 120, 40, 8, 8));
+            btnElim.MouseEnter += (s, e) => btnElim.BackColor = Color.FromArgb(180, 35, 35);
+            btnElim.MouseLeave += (s, e) => btnElim.BackColor = C_DANGER;
+            btnElim.Click += (s, e) => { resultado = true; modal.Close(); };
+            modal.Controls.Add(btnElim);
+
+            modal.ShowDialog(this);
+            return resultado;
+        }
+
+        // ════════════════════════════════════════════════════════
         //  PÁGINA CAMBIAR PIN
         // ════════════════════════════════════════════════════════
         private Panel PagePin()
@@ -343,12 +470,10 @@ namespace RestaurantKarin
             Panel card = Card(24, 92, 812, 456, page);
             CardTitle(card, "Selecciona usuario y nuevo PIN", 20, 16);
 
-            // Combo usuario
             FieldLbl("Usuario", card, 20, 52);
             ComboBox cmb = RoundCombo(card, 20, 70, 510);
             LoadCmb(cmb);
 
-            // Botón refresh
             Button btnR = new Button();
             btnR.Text = "↺"; btnR.Size = new Size(40, 38); btnR.Location = new Point(540, 70);
             btnR.FlatStyle = FlatStyle.Flat; btnR.FlatAppearance.BorderSize = 1;
@@ -358,16 +483,13 @@ namespace RestaurantKarin
             btnR.Click += (s, e) => LoadCmb(cmb);
             card.Controls.Add(btnR);
 
-            // Separador
             card.Controls.Add(HLine(20, 126, 772, C_BORDER));
 
-            // Nuevo PIN
             FieldLbl("Nuevo PIN", card, 20, 146);
             TextBox tN = RoundInput(card, 20, 166, 300, pwd: true);
             tN.MaxLength = 4; tN.Font = new Font("Segoe UI", 16, FontStyle.Bold);
             Button oj1 = EyeBtn(tN); oj1.Location = new Point(328, 169); card.Controls.Add(oj1);
 
-            // Barra de progreso PIN
             Panel barBg = new Panel();
             barBg.Size = new Size(300, 5); barBg.Location = new Point(20, 216);
             barBg.BackColor = C_BORDER; card.Controls.Add(barBg);
@@ -389,7 +511,6 @@ namespace RestaurantKarin
                 else { lSeg.Text = "PIN completo ✓"; lSeg.ForeColor = C_SUCCESS; barFg.BackColor = C_SUCCESS; }
             };
 
-            // Confirmar PIN
             FieldLbl("Confirmar PIN", card, 20, 260);
             TextBox tC = RoundInput(card, 20, 278, 300, pwd: true);
             tC.MaxLength = 4; tC.Font = new Font("Segoe UI", 16, FontStyle.Bold);
@@ -410,7 +531,6 @@ namespace RestaurantKarin
 
             card.Controls.Add(HLine(20, 358, 772, C_BORDER));
 
-            // Botones
             Button btnSave = BtnPrimary("Actualizar PIN", card, 20, 378, 180, 46);
             Button btnCnc = BtnSecondary("Cancelar", card, 214, 378, 120, 46);
 
@@ -438,7 +558,8 @@ namespace RestaurantKarin
                         using (var cmd = new SQLiteCommand(
                             "UPDATE usuario SET pin_acceso=@p WHERE id_usuario=@id", con))
                         {
-                            cmd.Parameters.AddWithValue("@p", nv); cmd.Parameters.AddWithValue("@id", id);
+                            cmd.Parameters.AddWithValue("@p", nv);
+                            cmd.Parameters.AddWithValue("@id", id);
                             cmd.ExecuteNonQuery();
                         }
                     }
@@ -455,7 +576,6 @@ namespace RestaurantKarin
         // ════════════════════════════════════════════════════════
         //  FACTORY DE CONTROLES
         // ════════════════════════════════════════════════════════
-
         private void PageHeader(Panel page, string titulo, string sub)
         {
             Label t = new Label();
@@ -508,7 +628,6 @@ namespace RestaurantKarin
             l.AutoSize = true; p.Controls.Add(l); return l;
         }
 
-        // Input redondeado — dibujado con owner draw
         private TextBox RoundInput(Panel p, int x, int y, int w, bool pwd = false)
         {
             Panel wrap = new Panel();
@@ -617,7 +736,6 @@ namespace RestaurantKarin
             return d;
         }
 
-        // ── Botones con bordes redondeados ────────────────────
         private Button BtnPrimary(string t, Panel p, int x, int y, int w, int h)
         {
             Button b = new Button();
@@ -625,8 +743,7 @@ namespace RestaurantKarin
             b.FlatStyle = FlatStyle.Flat; b.FlatAppearance.BorderSize = 0;
             b.BackColor = C_PRIMARY; b.ForeColor = Color.White;
             b.Font = new Font("Segoe UI", 10, FontStyle.Bold); b.Cursor = Cursors.Hand;
-            b.Region = System.Drawing.Region.FromHrgn(
-                CreateRoundRectRgn(0, 0, w, h, 8, 8));
+            b.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, w, h, 8, 8));
             b.MouseEnter += (s, e) => b.BackColor = C_PRIMARY_H;
             b.MouseLeave += (s, e) => b.BackColor = C_PRIMARY;
             p.Controls.Add(b); return b;
@@ -640,8 +757,7 @@ namespace RestaurantKarin
             b.FlatAppearance.BorderColor = C_BORDER;
             b.BackColor = C_SURFACE; b.ForeColor = C_TEXT1;
             b.Font = new Font("Segoe UI", 10); b.Cursor = Cursors.Hand;
-            b.Region = System.Drawing.Region.FromHrgn(
-                CreateRoundRectRgn(0, 0, w, h, 8, 8));
+            b.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, w, h, 8, 8));
             b.MouseEnter += (s, e) => b.BackColor = C_BG;
             b.MouseLeave += (s, e) => b.BackColor = C_SURFACE;
             p.Controls.Add(b); return b;
@@ -655,8 +771,7 @@ namespace RestaurantKarin
             b.FlatAppearance.BorderColor = Color.FromArgb(250, 200, 200);
             b.BackColor = C_DANGER_BG; b.ForeColor = C_DANGER;
             b.Font = new Font("Segoe UI", 10); b.Cursor = Cursors.Hand;
-            b.Region = System.Drawing.Region.FromHrgn(
-                CreateRoundRectRgn(0, 0, w, h, 8, 8));
+            b.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, w, h, 8, 8));
             b.MouseEnter += (s, e) => b.BackColor = Color.FromArgb(255, 225, 225);
             b.MouseLeave += (s, e) => b.BackColor = C_DANGER_BG;
             p.Controls.Add(b); return b;
@@ -678,7 +793,6 @@ namespace RestaurantKarin
             return b;
         }
 
-        // ── Helpers sidebar ───────────────────────────────────
         private Button SbNavBtn(string text, int y, Panel sb)
         {
             Button b = new Button();
