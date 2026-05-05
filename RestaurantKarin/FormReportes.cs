@@ -7,16 +7,16 @@ namespace RestaurantKarin
 {
     public partial class FormReportes : UserControl
     {
-        // ── Paleta de colores (exacta según imagen) ────────────────────────
-        private static readonly Color CAzul = Color.FromArgb(30, 80, 120);   // azul oscuro navbar/headers
-        private static readonly Color CAzulMedio = Color.FromArgb(45, 105, 150);   // barras de fondo
-        private static readonly Color CNaranja = Color.FromArgb(240, 140, 55);   // barras de progreso / acento
-        private static readonly Color CTexto = Color.FromArgb(20, 45, 75);   // texto principal
-        private static readonly Color CFondo = Color.FromArgb(200, 225, 240);   // fondo general
+        // ── Paleta de colores ──────────────────────────────────────────────
+        private static readonly Color CAzul = Color.FromArgb(30, 80, 120);
+        private static readonly Color CAzulMedio = Color.FromArgb(45, 105, 150);
+        private static readonly Color CNaranja = Color.FromArgb(240, 140, 55);
+        private static readonly Color CTexto = Color.FromArgb(20, 45, 75);
+        private static readonly Color CFondo = Color.FromArgb(200, 225, 240);
         private static readonly Color CBlancoCard = Color.White;
-        private static readonly Color CHeaderCard = Color.FromArgb(28, 78, 118);   // cabecera tarjeta
+        private static readonly Color CHeaderCard = Color.FromArgb(28, 78, 118);
 
-        // Datos del gráfico de barras
+        // Datos del gráfico
         private readonly string[] _dias = { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" };
         private readonly double[] _ventas = { 400, 500, 350, 450, 650, 600, 550 };
 
@@ -29,44 +29,62 @@ namespace RestaurantKarin
 
         private void BuildUI()
         {
-            this.BackColor = CFondo;
+            // ── BackColor Transparent — hereda del contenedor padre (FormBase) ──
+            this.BackColor = Color.Transparent;
             this.Padding = new Padding(16);
 
-            // ── Scroll container ──────────────────────────────────────────
+            // ── Panel scroll que ocupa todo el UserControl ─────────────────
             var scroll = new Panel
             {
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
-                BackColor = CFondo
+                BackColor = Color.Transparent  // transparente para ver el fondo
             };
             this.Controls.Add(scroll);
 
-            // Inner content panel — grows downward
+            // ── Panel envolvente (Fill) — sirve para centrar ───────────────
+            var wrapper = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.Transparent
+            };
+            scroll.Controls.Add(wrapper);
+
+            // ── Panel de contenido con ancho fijo ─────────────────────────
+            const int W = 1080;   // ancho total del contenido
+
             var inner = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false,
-                BackColor = CFondo,
+                BackColor = Color.Transparent,
                 Padding = new Padding(0),
-                Margin = new Padding(0)
+                Margin = new Padding(0),
+                Width = W
             };
-            scroll.Controls.Add(inner);
 
-            // ═══════════════════════════════════════════════════════════════
-            // 1. BARRA DE FILTROS  ──  PERÍODO DE TIEMPO  07/02/26  07/02/26  VER REPORTE
-            // ═══════════════════════════════════════════════════════════════
+            // Recentrar cada vez que cambie el tamaño de la ventana
+            wrapper.Resize += (s, e) =>
+            {
+                inner.Location = new Point(Math.Max(0, (wrapper.Width - W) / 2), 12);
+            };
+            wrapper.Controls.Add(inner);
+
+            // Centrado inicial (antes del primer Resize)
+            inner.Location = new Point(Math.Max(0, (wrapper.Width - W) / 2), 12);
+
+
+            // 1. BARRA DE FILTROS
             var pnlFiltros = new Panel
             {
-                Size = new Size(1060, 52),
+                Size = new Size(W, 52),
                 BackColor = Color.Transparent,
                 Margin = new Padding(0, 0, 0, 14)
             };
             inner.Controls.Add(pnlFiltros);
 
-            // "PERÍODO DE TIEMPO" badge
             var lblPeriodo = new Label
             {
                 Text = "PERÍODO DE TIEMPO",
@@ -81,7 +99,6 @@ namespace RestaurantKarin
             RoundControl(lblPeriodo, 16);
             pnlFiltros.Controls.Add(lblPeriodo);
 
-            // DateTimePicker inicio
             var dtpInicio = new DateTimePicker
             {
                 Format = DateTimePickerFormat.Short,
@@ -104,21 +121,18 @@ namespace RestaurantKarin
             };
             pnlFiltros.Controls.Add(dtpFin);
 
-            var btnVer = MakeButton("VER REPORTE", CAzul, 418, 10, 130, 32);
-            pnlFiltros.Controls.Add(btnVer);
+            pnlFiltros.Controls.Add(MakeButton("VER REPORTE", CAzul, 418, 10, 130, 32));
 
-            // ═══════════════════════════════════════════════════════════════
-            // 2. FILA 1:  Ventas (izq)  |  Productos Más Vendidos (der)
-            // ═══════════════════════════════════════════════════════════════
+            // 2. FILA 1 — Ventas | Productos Más Vendidos
             var fila1 = new Panel
             {
-                Size = new Size(1060, 295),
+                Size = new Size(W, 295),
                 BackColor = Color.Transparent,
                 Margin = new Padding(0, 0, 0, 14)
             };
             inner.Controls.Add(fila1);
 
-            // ── Tarjeta Ventas ────────────────────────────────────────────
+            // Tarjeta Ventas
             var cardVentas = MakeCard(0, 0, 520, 295, "Ventas");
             fila1.Controls.Add(cardVentas);
 
@@ -131,76 +145,71 @@ namespace RestaurantKarin
             pnlChart.Paint += (s, e) => DrawBarChart(e.Graphics, pnlChart);
             cardVentas.Controls.Add(pnlChart);
 
-            var lblMoney = new Label
+            cardVentas.Controls.Add(new Label
             {
                 Text = "$3,250",
                 Font = new Font("Segoe UI", 16, FontStyle.Bold),
                 ForeColor = CTexto,
                 AutoSize = true,
                 Location = new Point(14, 255)
-            };
-            cardVentas.Controls.Add(lblMoney);
-
-            var lblTotal = new Label
+            });
+            cardVentas.Controls.Add(new Label
             {
                 Text = "Total",
                 Font = new Font("Segoe UI", 10),
                 ForeColor = CTexto,
                 AutoSize = true,
                 Location = new Point(100, 262)
-            };
-            cardVentas.Controls.Add(lblTotal);
+            });
 
-            // ── Tarjeta Productos Más Vendidos ───────────────────────────
+            // Tarjeta Productos Más Vendidos
             var cardProd = MakeCard(534, 0, 526, 295, "Productos Más Vendidos");
             fila1.Controls.Add(cardProd);
 
             string[] platillos = { "Platillo 1", "Platillo 2", "Platillo 3", "Platillo 4" };
             int[] cantidades = { 48, 25, 45, 10 };
             for (int i = 0; i < platillos.Length; i++)
-                AddProductRow(cardProd, platillos[i], cantidades[i], 50, i, showIcon: true);
+                AddProductRow(cardProd, platillos[i], cantidades[i], 50, i);
 
-            var lblVentasTot = new Label
+            cardProd.Controls.Add(new Label
             {
                 Text = "128 Ventas Totales",
                 Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 ForeColor = CTexto,
                 AutoSize = true,
                 Location = new Point(14, 258)
-            };
-            cardProd.Controls.Add(lblVentasTot);
+            });
 
             // ═══════════════════════════════════════════════════════════════
-            // 3. FILA 2:  Consumo Inventario (izq)  |  Ingresos Empleado (der)
+            // 3. FILA 2 — Consumo Inventario | Ingresos por Empleado
             // ═══════════════════════════════════════════════════════════════
             var fila2 = new Panel
             {
-                Size = new Size(1060, 295),
+                Size = new Size(W, 295),
                 BackColor = Color.Transparent,
                 Margin = new Padding(0, 0, 0, 14)
             };
             inner.Controls.Add(fila2);
 
-            // ── Tarjeta Consumo Inventario ────────────────────────────────
+            // Tarjeta Consumo Inventario
             var cardInv = MakeCard(0, 0, 520, 295, "Consumo de Inventario");
             fila2.Controls.Add(cardInv);
 
             string[] insumos = { "Insumo 1", "Insumo 2", "Insumo 3", "Insumo 4" };
             int[] consumos = { 24, 18, 16, 10 };
             for (int i = 0; i < insumos.Length; i++)
-                AddProductRow(cardInv, insumos[i], consumos[i], 28, i, showIcon: true);
+                AddProductRow(cardInv, insumos[i], consumos[i], 28, i);
 
-            var lblPct = new Label
+            cardInv.Controls.Add(new Label
             {
                 Text = "67% del Inventario Consumido",
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = CTexto,
                 AutoSize = true,
                 Location = new Point(14, 258)
-            };
-            cardInv.Controls.Add(lblPct);
+            });
 
-            // ── Tarjeta Ingresos por Empleado ─────────────────────────────
+            // Tarjeta Ingresos por Empleado
             var cardEmp = MakeCard(534, 0, 526, 295, "Ingresos por Empleado");
             fila2.Controls.Add(cardEmp);
 
@@ -210,13 +219,11 @@ namespace RestaurantKarin
             for (int i = 0; i < nombres.Length; i++)
                 AddEmployeeRow(cardEmp, nombres[i], ingresos[i], porcentajes[i], i);
 
-            // Botones exportar — dentro de cardEmp, abajo a la derecha
             var btnPDF = MakeButton("+ EXPORTAR PDF", CAzul, 14, 255, 160, 32);
-            cardEmp.Controls.Add(btnPDF);
-            btnPDF.BringToFront();
-
             var btnXLS = MakeButton("+ EXPORTAR EXCEL", CNaranja, 184, 255, 160, 32);
+            cardEmp.Controls.Add(btnPDF);
             cardEmp.Controls.Add(btnXLS);
+            btnPDF.BringToFront();
             btnXLS.BringToFront();
 
             btnPDF.Click += (s, e) => MessageBox.Show("Exportar a PDF", "Reportes");
@@ -227,7 +234,6 @@ namespace RestaurantKarin
         // HELPERS
         // ─────────────────────────────────────────────────────────────────
 
-        /// <summary>Crea una tarjeta blanca con header azul</summary>
         private Panel MakeCard(int x, int y, int w, int h, string title)
         {
             var card = new Panel
@@ -238,7 +244,6 @@ namespace RestaurantKarin
             };
             RoundControl(card, 10);
 
-            // Header
             var hdr = new Panel
             {
                 Location = new Point(0, 0),
@@ -247,7 +252,7 @@ namespace RestaurantKarin
             };
             card.Controls.Add(hdr);
 
-            var lbl = new Label
+            hdr.Controls.Add(new Label
             {
                 Text = title,
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
@@ -256,151 +261,58 @@ namespace RestaurantKarin
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding = new Padding(12, 0, 0, 0),
                 BackColor = Color.Transparent
-            };
-            hdr.Controls.Add(lbl);
+            });
 
             return card;
         }
 
-        /// <summary>Fila icono + nombre + barra progreso + número</summary>
-        private void AddProductRow(Panel card, string name, int value, int max, int index, bool showIcon)
+        private void AddProductRow(Panel card, string name, int value, int max, int index)
         {
             int yBase = 36 + index * 52;
             int barW = 300;
 
-            // Ícono circular (simulado)
-            if (showIcon)
-            {
-                var ico = new Panel
-                {
-                    Location = new Point(12, yBase + 2),
-                    Size = new Size(22, 22),
-                    BackColor = CAzul
-                };
-                RoundControl(ico, 11);
-                // fork-knife symbol
-                var icoLbl = new Label
-                {
-                    Text = "🍽",
-                    Font = new Font("Segoe UI Emoji", 8),
-                    ForeColor = Color.White,
-                    Dock = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    BackColor = Color.Transparent
-                };
-                ico.Controls.Add(icoLbl);
-                card.Controls.Add(ico);
-            }
+            var ico = new Panel { Location = new Point(12, yBase + 2), Size = new Size(22, 22), BackColor = CAzul };
+            RoundControl(ico, 11);
+            ico.Controls.Add(new Label { Text = "🍽", Font = new Font("Segoe UI Emoji", 8), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, BackColor = Color.Transparent });
+            card.Controls.Add(ico);
 
-            var lblName = new Label
-            {
-                Text = name,
-                Font = new Font("Segoe UI", 9),
-                ForeColor = CTexto,
-                AutoSize = true,
-                Location = new Point(40, yBase + 4)
-            };
-            card.Controls.Add(lblName);
+            card.Controls.Add(new Label { Text = name, Font = new Font("Segoe UI", 9), ForeColor = CTexto, AutoSize = true, Location = new Point(40, yBase + 4) });
 
-            // Barra de fondo (azul)
-            var barBg = new Panel
-            {
-                Location = new Point(40, yBase + 26),
-                Size = new Size(barW, 12),
-                BackColor = CAzulMedio
-            };
+            var barBg = new Panel { Location = new Point(40, yBase + 26), Size = new Size(barW, 12), BackColor = CAzulMedio };
             RoundControl(barBg, 6);
             card.Controls.Add(barBg);
 
-            // Barra rellena (naranja)
             int fill = Math.Max(1, (int)(barW * value / (double)max));
-            var barFg = new Panel
-            {
-                Location = new Point(0, 0),
-                Size = new Size(fill, 12),
-                BackColor = CNaranja
-            };
+            var barFg = new Panel { Location = new Point(0, 0), Size = new Size(fill, 12), BackColor = CNaranja };
             RoundControl(barFg, 6);
             barBg.Controls.Add(barFg);
 
-            var lblVal = new Label
-            {
-                Text = value.ToString(),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                ForeColor = CTexto,
-                AutoSize = true,
-                Location = new Point(350, yBase + 24)
-            };
-            card.Controls.Add(lblVal);
+            card.Controls.Add(new Label { Text = value.ToString(), Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = CTexto, AutoSize = true, Location = new Point(350, yBase + 24) });
         }
 
-        /// <summary>Fila empleado: icono + nombre + barra + ingreso</summary>
         private void AddEmployeeRow(Panel card, string name, string income, int pct, int index)
         {
             int yBase = 36 + index * 52;
             int barW = 280;
 
-            // Avatar circular
-            var avatar = new Panel
-            {
-                Location = new Point(12, yBase + 2),
-                Size = new Size(22, 22),
-                BackColor = CAzulMedio
-            };
+            var avatar = new Panel { Location = new Point(12, yBase + 2), Size = new Size(22, 22), BackColor = CAzulMedio };
             RoundControl(avatar, 11);
-            var avLbl = new Label
-            {
-                Text = "👤",
-                Font = new Font("Segoe UI Emoji", 8),
-                ForeColor = Color.White,
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent
-            };
-            avatar.Controls.Add(avLbl);
+            avatar.Controls.Add(new Label { Text = "👤", Font = new Font("Segoe UI Emoji", 8), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, BackColor = Color.Transparent });
             card.Controls.Add(avatar);
 
-            var lblName = new Label
-            {
-                Text = name,
-                Font = new Font("Segoe UI", 9),
-                ForeColor = CTexto,
-                AutoSize = true,
-                Location = new Point(40, yBase + 4)
-            };
-            card.Controls.Add(lblName);
+            card.Controls.Add(new Label { Text = name, Font = new Font("Segoe UI", 9), ForeColor = CTexto, AutoSize = true, Location = new Point(40, yBase + 4) });
+            card.Controls.Add(new Label { Text = income, Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = CNaranja, AutoSize = true, Location = new Point(360, yBase + 4) });
 
-            var lblIncome = new Label
-            {
-                Text = income,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                ForeColor = CNaranja,
-                AutoSize = true,
-                Location = new Point(360, yBase + 4)
-            };
-            card.Controls.Add(lblIncome);
-
-            var barBg = new Panel
-            {
-                Location = new Point(40, yBase + 26),
-                Size = new Size(barW, 12),
-                BackColor = CAzulMedio
-            };
+            var barBg = new Panel { Location = new Point(40, yBase + 26), Size = new Size(barW, 12), BackColor = CAzulMedio };
             RoundControl(barBg, 6);
             card.Controls.Add(barBg);
 
             int fill = Math.Max(1, (int)(barW * pct / 100.0));
-            var barFg = new Panel
-            {
-                Location = new Point(0, 0),
-                Size = new Size(fill, 12),
-                BackColor = CNaranja
-            };
+            var barFg = new Panel { Location = new Point(0, 0), Size = new Size(fill, 12), BackColor = CNaranja };
             RoundControl(barFg, 6);
             barBg.Controls.Add(barFg);
         }
 
-        /// <summary>Crea un botón estilizado</summary>
         private Button MakeButton(string text, Color bg, int x, int y, int w, int h)
         {
             var btn = new Button
@@ -418,7 +330,6 @@ namespace RestaurantKarin
             return btn;
         }
 
-        /// <summary>Dibuja el gráfico de barras de ventas</summary>
         private void DrawBarChart(Graphics g, Panel panel)
         {
             g.Clear(Color.White);
@@ -427,8 +338,7 @@ namespace RestaurantKarin
             int padL = 42, padR = 10, padT = 10, padB = 30;
             int gW = panel.Width - padL - padR;
             int gH = panel.Height - padT - padB;
-            int ox = padL;
-            int oy = panel.Height - padB;
+            int ox = padL, oy = panel.Height - padB;
 
             using var penGrid = new Pen(Color.FromArgb(210, 220, 230), 1f);
             using var fntAx = new Font("Segoe UI", 7);
@@ -436,7 +346,7 @@ namespace RestaurantKarin
             using var brBar = new SolidBrush(CNaranja);
 
             double maxVal = 700;
-            int steps = 7;   // $100 cada paso hasta $700
+            int steps = 7;
 
             for (int i = 0; i <= steps; i++)
             {
@@ -458,7 +368,6 @@ namespace RestaurantKarin
                 float bx = ox + i * slot + bo;
                 float by = oy - barH;
 
-                // Esquinas superiores redondeadas
                 var path = new GraphicsPath();
                 float r = 4;
                 path.AddArc(bx, by, r * 2, r * 2, 180, 90);
@@ -473,7 +382,6 @@ namespace RestaurantKarin
             }
         }
 
-        /// <summary>Aplica Region redondeada a un control</summary>
         private static void RoundControl(Control ctrl, int radius)
         {
             int w = Math.Max(ctrl.Width, 1);
