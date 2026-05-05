@@ -278,6 +278,11 @@ namespace RestaurantKarin
                 BackColor = Color.White
             };
             ApplyRoundedRegion(searchBg, 18);
+            searchBg.HandleCreated += (_, _) =>
+            {
+                using var path = RoundedRect(new Rectangle(0, 0, searchBg.Width, searchBg.Height), 18);
+                searchBg.Region = new Region(path);
+            };
             searchBg.Paint += (_, e) =>
             {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;

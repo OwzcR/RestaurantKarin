@@ -67,6 +67,11 @@ namespace RestaurantKarin
             var searchBg = new Panel { Size = new Size(300, 36), Location = new Point(0, 8), BackColor = Color.White };
             searchBg.Paint += PaintRoundedWhite;
             ApplyRoundedRegion(searchBg, 18);
+            searchBg.HandleCreated += (_, _) =>
+            {
+                using var path = RoundedPath(new Rectangle(0, 0, searchBg.Width, searchBg.Height), 18);
+                searchBg.Region = new Region(path);
+            };
 
             var lblIcon = new Label { Text = "🔍", AutoSize = true, Location = new Point(10, 9), BackColor = Color.Transparent, Font = FntReg9 };
             _txtBuscar = new TextBox
@@ -108,19 +113,16 @@ namespace RestaurantKarin
 
             // "Cuentas :" tab label
             var tabHost = new Panel { Height = 42, Dock = DockStyle.Top, BackColor = Color.Transparent };
-            var tabCard = new Panel { Size = new Size(116, 30), Location = new Point(16, 8), BackColor = Color.White };
-            tabCard.Resize += (_, _) => ApplyRoundedRegion(tabCard, 10);
             var lblTab = new Label
             {
                 Text      = "Cuentas :",
                 Font      = FntBold11,
                 ForeColor = Color.FromArgb(30, 30, 30),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize  = true,
+                Location  = new Point(16, 12),
                 BackColor = Color.Transparent
             };
-            tabCard.Controls.Add(lblTab);
-            tabHost.Controls.Add(tabCard);
+            tabHost.Controls.Add(lblTab);
 
             // Flow panel — scrollable account rows
             _flow = new FlowLayoutPanel
