@@ -7,13 +7,15 @@ using System.Configuration;
 
 namespace RestaurantKarin
 {
-    public partial class FormInventario : UserControl
+    public partial class FormInventario : Form
     {
-        // Colores y configuración visual
+        // Colores de la interfaz
         private Color colorVerdeBorde = Color.FromArgb(88, 160, 166);
         private Color colorTablaFondo = Color.FromArgb(220, 230, 235);
         private Color colorAzulBtn = Color.FromArgb(26, 90, 122);
+        private Color colorSeleccion = Color.FromArgb(180, 220, 240); // Celeste de selección
         private ListView lista;
+        private TextBox txtBusqueda;
 
         public FormInventario()
         {
@@ -24,105 +26,158 @@ namespace RestaurantKarin
 
         private void SetupUI()
         {
-            this.BackColor = Color.Transparent;
-            this.Padding = new Padding(16);
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.BackColor = Color.FromArgb(29, 53, 87);
+            this.Padding = new Padding(20, 20, 30, 20);
 
-            // 1. TARJETA BLANCA PRINCIPAL
+            // Contenedor Principal (Tarjeta Blanca)
             Panel cardPrincipal = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.White,
-                Padding = new Padding(25)
+                BackColor = Color.Transparent,
+                Padding = new Padding(20)
             };
             this.Controls.Add(cardPrincipal);
-            RedondearControl(cardPrincipal, 30);
 
-            // --- 2. PANEL SUPERIOR (BUSCADOR) ---
-            Panel pnlSuperior = new Panel { Dock = DockStyle.Top, Height = 65 };
+            cardPrincipal.Paint += (s, e) => {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using (GraphicsPath path = CrearPathRedondeado(cardPrincipal.ClientRectangle, 30))
+                {
+                    e.Graphics.FillPath(Brushes.White, path);
+                }
+            };
+
+            // --- PANEL SUPERIOR (Buscador y Filtros) ---
+            Panel pnlSuperior = new Panel { Dock = DockStyle.Top, Height = 60 };
             Panel pnlBusqueda = new Panel
             {
-                Size = new Size(500, 40),
-                Location = new Point(0, 10),
+                Size = new Size(620, 40),
+                Location = new Point(0, 5),
                 BackColor = Color.FromArgb(240, 244, 248)
             };
-            TextBox txtBusqueda = new TextBox
+
+            pnlBusqueda.Paint += (s, e) => {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using (GraphicsPath path = CrearPathRedondeado(pnlBusqueda.ClientRectangle, 20))
+                {
+                    e.Graphics.FillPath(new SolidBrush(pnlBusqueda.BackColor), path);
+                }
+            };
+
+            txtBusqueda = new TextBox
             {
                 Text = " BUSCAR INSUMO...",
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.Gray,
                 BorderStyle = BorderStyle.None,
-                BackColor = pnlBusqueda.BackColor,
-                Location = new Point(15, 10),
-                Width = 450
+                BackColor = Color.FromArgb(240, 244, 248),
+                Location = new Point(15, 12),
+                Width = 330
             };
-            pnlBusqueda.Controls.Add(txtBusqueda);
-            pnlSuperior.Controls.Add(pnlBusqueda);
-            RedondearControl(pnlBusqueda, 20);
 
-            // --- 3. PANEL INFERIOR (BOTONES DE ACCIÓN) ---
+            txtBusqueda.Enter += (s, e) => {
+                if (txtBusqueda.Text == " BUSCAR INSUMO...") { txtBusqueda.Text = ""; txtBusqueda.ForeColor = Color.Black; }
+            };
+            txtBusqueda.Leave += (s, e) => {
+                if (string.IsNullOrWhiteSpace(txtBusqueda.Text)) { txtBusqueda.Text = " BUSCAR INSUMO..."; txtBusqueda.ForeColor = Color.Gray; }
+            };
+
+            // Botón Buscar
+            Button btnBuscar = new Button
+            {
+                Text = "BUSCAR",
+                Size = new Size(100, 32),
+                Location = new Point(360, 4),
+                BackColor = colorAzulBtn,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnBuscar.FlatAppearance.BorderSize = 0;
+            btnBuscar.Click += (s, e) => EjecutarBusqueda();
+
+            // Botón Ver Todo (Restaurar tabla)
+            Button btnVerTodo = new Button
+            {
+                Text = "VER TODO",
+                Size = new Size(100, 32),
+                Location = new Point(470, 4),
+                BackColor = Color.SlateGray,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnVerTodo.FlatAppearance.BorderSize = 0;
+            btnVerTodo.Click += (s, e) => {
+                txtBusqueda.Text = " BUSCAR INSUMO...";
+                txtBusqueda.ForeColor = Color.Gray;
+                CargarDatosTabla();
+            };
+
+            pnlBusqueda.Controls.Add(txtBusqueda);
+            pnlBusqueda.Controls.Add(btnBuscar);
+            pnlBusqueda.Controls.Add(btnVerTodo);
+            pnlSuperior.Controls.Add(pnlBusqueda);
+
+            // --- PANEL INFERIOR (Acciones) ---
             TableLayoutPanel pnlBotones = new TableLayoutPanel
             {
                 Dock = DockStyle.Bottom,
-                Height = 85,
+                Height = 80,
                 ColumnCount = 4,
-                Padding = new Padding(0, 15, 0, 0)
+                Padding = new Padding(0, 10, 0, 0)
             };
             pnlBotones.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
             pnlBotones.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
             pnlBotones.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
             pnlBotones.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
 
-            Button btnAgregar = CrearBotonAccion("➕ AGREGAR\nINSUMO", colorVerdeBorde);
-            btnAgregar.Click += (s, e) => {
-                using (FormAgregarInsumo frm = new FormAgregarInsumo())
-                {
+            Button btnAdd = CrearBotonAccion("➕ AGREGAR\nINSUMO", colorVerdeBorde);
+            btnAdd.Click += (s, e) => {
+                using (FormAgregarInsumo frm = new FormAgregarInsumo()) {
                     frm.StartPosition = FormStartPosition.CenterParent;
                     if (frm.ShowDialog(this) == DialogResult.OK) CargarDatosTabla();
                 }
             };
 
-            Button btnEditar = CrearBotonAccion("📝 EDITAR\nINSUMO", colorAzulBtn);
-            btnEditar.Click += (s, e) => {
-                if (lista.SelectedItems.Count > 0)
-                {
-                    ListViewItem item = lista.SelectedItems[0];
-                    using (FormEditarInsumo frmEditar = new FormEditarInsumo())
-                    {
-                        frmEditar.StartPosition = FormStartPosition.CenterParent;
-                        frmEditar.CargarDatosParaEdicion(
-                            item.SubItems[0].Text, item.SubItems[1].Text, item.SubItems[2].Text,
-                            item.SubItems[3].Text, item.SubItems[4].Text, item.SubItems[5].Text, item.SubItems[6].Text);
-                        if (frmEditar.ShowDialog(this) == DialogResult.OK) CargarDatosTabla();
+            Button btnEdit = CrearBotonAccion("📝 EDITAR\nINSUMO", colorAzulBtn);
+            btnEdit.Click += (s, e) => {
+                if (lista.SelectedItems.Count > 0) {
+                    var it = lista.SelectedItems[0];
+                    using (FormEditarInsumo frm = new FormEditarInsumo()) {
+                        frm.StartPosition = FormStartPosition.CenterParent;
+                        frm.CargarDatosParaEdicion(it.Text, it.SubItems[1].Text, it.SubItems[2].Text, it.SubItems[3].Text, it.SubItems[4].Text, it.SubItems[5].Text, it.SubItems[6].Text);
+                        if (frm.ShowDialog(this) == DialogResult.OK) CargarDatosTabla();
                     }
-                }
-                else MessageBox.Show("Selecciona un insumo primero.");
+                } else MessageBox.Show("Selecciona un insumo para editar.");
             };
 
-            Button btnEntrada = CrearBotonAccion("🗃 ENTRADA\nINSUMOS", colorAzulBtn);
-            btnEntrada.Click += (s, e) => {
-                if (lista.SelectedItems.Count > 0)
-                {
-                    ListViewItem item = lista.SelectedItems[0];
-                    using (FormEntradaInsumos frmEntrada = new FormEntradaInsumos())
-                    {
-                        frmEntrada.CargarDatos(item.SubItems[0].Text, item.SubItems[1].Text, item.SubItems[3].Text);
-                        if (frmEntrada.ShowDialog(this) == DialogResult.OK) CargarDatosTabla();
+            Button btnEnt = CrearBotonAccion("🗃 ENTRADA\nINSUMOS", colorAzulBtn);
+            btnEnt.Click += (s, e) => {
+                if (lista.SelectedItems.Count > 0) {
+                    var it = lista.SelectedItems[0];
+                    using (FormEntradaInsumos frm = new FormEntradaInsumos()) {
+                        frm.StartPosition = FormStartPosition.CenterParent;
+                        frm.CargarDatos(it.Text, it.SubItems[1].Text, it.SubItems[3].Text);
+                        if (frm.ShowDialog(this) == DialogResult.OK) CargarDatosTabla();
                     }
-                }
+                } else MessageBox.Show("Selecciona un insumo para la entrada.");
+            };
+
+            Button btnDel = CrearBotonAccion("🗑 ELIMINAR\nINSUMO", Color.FromArgb(239, 83, 80));
+            btnDel.Click += (s, e) => {
+                if (lista.SelectedItems.Count > 0) AccionEliminar(lista.SelectedItems[0]);
                 else MessageBox.Show("Selecciona un insumo.");
             };
 
-            Button btnEliminar = CrearBotonAccion("🗑 ELIMINAR\nINSUMO", Color.FromArgb(239, 83, 80));
-            btnEliminar.Click += (s, e) => {
-                if (lista.SelectedItems.Count > 0) AccionEliminar(lista.SelectedItems[0]);
-            };
+            pnlBotones.Controls.Add(btnAdd, 0, 0);
+            pnlBotones.Controls.Add(btnEdit, 1, 0);
+            pnlBotones.Controls.Add(btnEnt, 2, 0);
+            pnlBotones.Controls.Add(btnDel, 3, 0);
 
-            pnlBotones.Controls.Add(btnAgregar, 0, 0);
-            pnlBotones.Controls.Add(btnEditar, 1, 0);
-            pnlBotones.Controls.Add(btnEntrada, 2, 0);
-            pnlBotones.Controls.Add(btnEliminar, 3, 0);
-
-            // --- 4. TABLA (LISTVIEW) ---
+            // --- TABLA (ListView) ---
             lista = new ListView
             {
                 Dock = DockStyle.Fill,
@@ -131,62 +186,80 @@ namespace RestaurantKarin
                 MultiSelect = false,
                 BorderStyle = BorderStyle.None,
                 BackColor = colorTablaFondo,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 OwnerDraw = true
             };
 
-            lista.Columns.Add("ID", 50);
-            lista.Columns.Add("Insumo", 250);
-            lista.Columns.Add("Stock Actual", 130);
+            lista.Columns.Add("ID", 60);
+            lista.Columns.Add("Insumo", 300);
+            lista.Columns.Add("Stock Actual", 120);
             lista.Columns.Add("Unidad", 100);
-            lista.Columns.Add("Stock Mínimo", 130);
-            lista.Columns.Add("Última Entrada", 160);
-            lista.Columns.Add("Costo", 120);
+            lista.Columns.Add("Stock Mínimo", 120);
+            lista.Columns.Add("Última Entrada", 150);
+            lista.Columns.Add("Costo", 110);
+
+            cardPrincipal.SizeChanged += (s, e) => AjustarColumnas();
 
             lista.DrawColumnHeader += (s, e) => {
                 e.Graphics.FillRectangle(Brushes.White, e.Bounds);
-                e.Graphics.DrawRectangle(new Pen(colorVerdeBorde, 3), e.Bounds);
+                using (Pen p = new Pen(colorVerdeBorde, 2)) e.Graphics.DrawRectangle(p, e.Bounds);
                 TextRenderer.DrawText(e.Graphics, e.Header.Text, lista.Font, e.Bounds, Color.FromArgb(26, 75, 80), TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
             };
+
             lista.DrawSubItem += (s, e) => {
-                e.Graphics.DrawRectangle(new Pen(colorVerdeBorde, 1), e.Bounds);
+                if (e.Item.Selected) {
+                    e.Graphics.FillRectangle(new SolidBrush(colorSeleccion), e.Bounds);
+                } else {
+                    e.Graphics.FillRectangle(new SolidBrush(lista.BackColor), e.Bounds);
+                }
+                using (Pen p = new Pen(colorVerdeBorde, 1)) e.Graphics.DrawRectangle(p, e.Bounds);
                 TextRenderer.DrawText(e.Graphics, e.SubItem.Text, lista.Font, e.Bounds, Color.Black, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
             };
 
-            // AGREGAR AL CARD EN ORDEN ESPECÍFICO PARA EL DOCKING
-            cardPrincipal.Controls.Add(lista);       
-            cardPrincipal.Controls.Add(pnlSuperior); 
-            cardPrincipal.Controls.Add(pnlBotones);  
-
-            lista.BringToFront(); 
+            cardPrincipal.Controls.Add(lista);
+            cardPrincipal.Controls.Add(pnlSuperior);
+            cardPrincipal.Controls.Add(pnlBotones);
+            lista.BringToFront();
         }
 
-
-        public void CargarDatosTabla()
+        private GraphicsPath CrearPathRedondeado(Rectangle r, int radio)
         {
-            if (lista == null) return;
+            GraphicsPath gp = new GraphicsPath();
+            int d = radio * 2;
+            if (d > r.Width) d = r.Width;
+            if (d > r.Height) d = r.Height;
+            gp.AddArc(r.X, r.Y, d, d, 180, 90);
+            gp.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            gp.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            gp.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            gp.CloseFigure();
+            return gp;
+        }
+
+        private void AjustarColumnas()
+        {
+            if (lista == null || lista.Columns.Count < 2) return;
+            int anchoFijo = 0;
+            for (int i = 0; i < lista.Columns.Count; i++) if (i != 1) anchoFijo += lista.Columns[i].Width;
+            int nuevoAncho = lista.Width - anchoFijo - 15;
+            if (nuevoAncho > 100) lista.Columns[1].Width = nuevoAncho;
+        }
+
+        private void EjecutarBusqueda()
+        {
+            string criterio = txtBusqueda.Text.Trim();
+            if (criterio == " BUSCAR INSUMO..." || string.IsNullOrEmpty(criterio)) { CargarDatosTabla(); return; }
             lista.Items.Clear();
-
-            // Dato de prueba
-            ListViewItem prueba = new ListViewItem("0");
-            prueba.SubItems.Add("TOMATE (PRUEBA)");
-            prueba.SubItems.Add("10"); prueba.SubItems.Add("Kg");
-            prueba.SubItems.Add("2"); prueba.SubItems.Add(DateTime.Now.ToString("dd/MM/yyyy"));
-            prueba.SubItems.Add("$25.00");
-            lista.Items.Add(prueba);
-
-            try
-            {
+            try {
                 string cadena = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
-                using (SQLiteConnection conn = new SQLiteConnection(cadena))
-                {
+                using (SQLiteConnection conn = new SQLiteConnection(cadena)) {
                     conn.Open();
-                    using (SQLiteCommand cmd = new SQLiteCommand("SELECT * FROM Insumos", conn))
-                    {
-                        using (SQLiteDataReader dr = cmd.ExecuteReader())
-                        {
-                            while (dr.Read())
-                            {
+                    string query = "SELECT * FROM Insumos WHERE id_insumo = @c OR Nombre LIKE @p";
+                    using (SQLiteCommand cmd = new SQLiteCommand(query, conn)) {
+                        cmd.Parameters.AddWithValue("@c", criterio);
+                        cmd.Parameters.AddWithValue("@p", "%" + criterio + "%");
+                        using (SQLiteDataReader dr = cmd.ExecuteReader()) {
+                            while (dr.Read()) {
                                 ListViewItem item = new ListViewItem(dr["id_insumo"].ToString());
                                 item.SubItems.Add(dr["Nombre"].ToString());
                                 item.SubItems.Add(dr["StockActual"].ToString());
@@ -199,61 +272,63 @@ namespace RestaurantKarin
                         }
                     }
                 }
-            }
-            catch (Exception) { }
+            } catch (Exception ex) { MessageBox.Show("Error en búsqueda: " + ex.Message); }
+        }
+
+        public void CargarDatosTabla()
+        {
+            if (lista == null) return;
+            lista.Items.Clear();
+            try {
+                string cadena = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
+                using (SQLiteConnection conn = new SQLiteConnection(cadena)) {
+                    conn.Open();
+                    using (SQLiteCommand cmd = new SQLiteCommand("SELECT * FROM Insumos", conn)) {
+                        using (SQLiteDataReader dr = cmd.ExecuteReader()) {
+                            while (dr.Read()) {
+                                ListViewItem item = new ListViewItem(dr["id_insumo"].ToString());
+                                item.SubItems.Add(dr["Nombre"].ToString());
+                                item.SubItems.Add(dr["StockActual"].ToString());
+                                item.SubItems.Add(dr["Unidad"].ToString());
+                                item.SubItems.Add(dr["StockMinimo"].ToString());
+                                item.SubItems.Add(dr["FechaEntrada"].ToString());
+                                item.SubItems.Add("$" + dr["Costo"].ToString());
+                                lista.Items.Add(item);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception) { }
+            AjustarColumnas();
         }
 
         private void AccionEliminar(ListViewItem item)
         {
-            string id = item.SubItems[0].Text;
-            if (id == "0") { MessageBox.Show("No puedes eliminar el dato de prueba."); return; }
-
             if (MessageBox.Show($"¿Eliminar '{item.SubItems[1].Text}'?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
             {
-                try
-                {
+                try {
                     string cadena = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
-                    using (SQLiteConnection con = new SQLiteConnection(cadena))
-                    {
+                    using (SQLiteConnection con = new SQLiteConnection(cadena)) {
                         con.Open();
-                        using (SQLiteCommand cmd = new SQLiteCommand("DELETE FROM Insumos WHERE id_insumo = @id", con))
-                        {
-                            cmd.Parameters.AddWithValue("@id", id);
+                        using (SQLiteCommand cmd = new SQLiteCommand("DELETE FROM Insumos WHERE id_insumo = @id", con)) {
+                            cmd.Parameters.AddWithValue("@id", item.SubItems[0].Text);
                             cmd.ExecuteNonQuery();
                         }
                     }
                     CargarDatosTabla();
-                }
-                catch (Exception ex) { MessageBox.Show(ex.Message); }
+                } catch (Exception ex) { MessageBox.Show(ex.Message); }
             }
         }
 
         private Button CrearBotonAccion(string texto, Color color)
         {
-            Button btn = new Button
-            {
-                Text = texto,
-                Dock = DockStyle.Fill,
-                Margin = new Padding(8, 0, 8, 0),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = color,
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                Cursor = Cursors.Hand
+            Button btn = new Button {
+                Text = texto, Dock = DockStyle.Fill, Margin = new Padding(5),
+                FlatStyle = FlatStyle.Flat, BackColor = color, ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold), Cursor = Cursors.Hand
             };
             btn.FlatAppearance.BorderSize = 0;
-            return btn; 
-        }
-
-        private void RedondearControl(Control c, int radio)
-        {
-            GraphicsPath gp = new GraphicsPath();
-            gp.AddArc(0, 0, radio, radio, 180, 90);
-            gp.AddArc(c.Width - radio, 0, radio, radio, 270, 90);
-            gp.AddArc(c.Width - radio, c.Height - radio, radio, radio, 0, 90);
-            gp.AddArc(0, c.Height - radio, radio, radio, 90, 90);
-            c.Region = new Region(gp);
-            c.Resize += (s, e) => RedondearControl(c, radio);
+            return btn;
         }
     }
 }
