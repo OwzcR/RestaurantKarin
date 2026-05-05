@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 using System.Data.SQLite;
 using System.IO;
 
@@ -6,15 +7,23 @@ namespace RestaurantKarin
 {
     public static class DatabaseHelper
     {
+        private static readonly string NombreArchivo = "karin_pos.db";
+        private static readonly string ConnectionString = $"Data Source={NombreArchivo};Version=3;";
+
+        /// <summary>
+        /// Obtiene la cadena de conexión a la base de datos SQLite.
+        /// </summary>
+        public static string GetConnectionString() => ConnectionString;
+
         public static void InicializarBaseDeDatos()
         {
-            string nombreArchivo = "karin_pos.db";
+            string nombreArchivo = NombreArchivo;
 
             if (!File.Exists(nombreArchivo))
             {
                 SQLiteConnection.CreateFile(nombreArchivo);
 
-                using (var conexion = new SQLiteConnection($"Data Source={nombreArchivo};Version=3;"))
+                using (var conexion = new SQLiteConnection(ConnectionString))
                 {
                     conexion.Open();
 
@@ -260,6 +269,307 @@ INSERT OR IGNORE INTO Insumos (Nombre, StockActual, Unidad, StockMinimo, FechaEn
 ('Tortilla tostada', 0, 'pieza', 0, '', 1.50);";
             using var cmd = new SQLiteCommand(insert, con);
             cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Obtiene el reporte de ventas en un rango de fechas.
+        /// </summary>
+        /// <param name="fechaInicio">Fecha de inicio del reporte</param>
+        /// <param name="fechaFin">Fecha de fin del reporte</param>
+        /// <returns>DataTable con ventas totales, cantidad de órdenes, etc.</returns>
+        public static System.Data.DataTable ObtenerReporteVentas(DateTime fechaInicio, DateTime fechaFin)
+        {
+            var dt = new System.Data.DataTable();
+            try
+            {
+                using (var con = new SQLiteConnection(ConnectionString))
+                {
+                    con.Open();
+                    string sql = @"
+                        SELECT 
+                            COALESCE(DATE(c.fecha_apertura), @inicio) as Fecha,
+                            COUNT(DISTINCT c.id_cuenta) as CantidadOrdenes,
+                            ROUND(COALESCE(SUM(CASE WHEN c.estado_cuenta='Cerrada' THEN c.total ELSE 0 END), 0), 2) as VentasCompletadas,
+                            ROUND(COALESCE(SUM(CASE WHEN c.estado_cuenta='Abierta' THEN c.total ELSE 0 END), 0), 2) as VentasPendientes,
+                            ROUND(COALESCE(SUM(c.total), 0), 2) as VentasTotal
+                        FROM cuenta c
+                        WHERE DATE(c.fecha_apertura) BETWEEN @inicio AND @fin
+                        GROUP BY DATE(c.fecha_apertura)
+                        ORDER BY c.fecha_apertura DESC";
+
+                    using (var cmd = new SQLiteCommand(sql, con))
+                    {
+                        cmd.Parameters.AddWithValue("@inicio", fechaInicio.Date);
+                        cmd.Parameters.AddWithValue("@fin", fechaFin.Date);
+
+                        using (var adapter = new System.Data.SQLite.SQLiteDataAdapter(cmd))
+                        {
+                            adapter.Fill(dt);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show($"Error al obtener reporte de ventas: {ex.Message}", "Error", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+            }
+            return dt;
+        }
+
+        /// <summary>
+        /// Obtiene el reporte de productos más vendidos en un rango de fechas.
+        /// </summary>
+        public static System.Data.DataTable ObtenerReporteProductosMasVendidos(DateTime fechaInicio, DateTime fechaFin)
+        {
+            var dt = new System.Data.DataTable();
+            try
+            {
+                using (var con = new SQLiteConnection(ConnectionString))
+                {
+                    con.Open();
+                    string sql = @"
+                        SELECT 
+                            p.nombre as Producto,
+                            COALESCE(cat.nombre, 'Sin Categoría') as Categoria,
+                            SUM(dc.cantidad) as CantidadVendida,
+                            ROUND(SUM(dc.subtotal), 2) as IngresoTotal,
+                            ROUND(AVG(dc.precio_unitario), 2) as PrecioPromedio
+                        FROM detalle_cuenta dc
+                        INNER JOIN producto p ON dc.id_producto = p.id_producto
+                        LEFT JOIN categoria cat ON p.id_categoria = cat.id_categoria
+                        INNER JOIN cuenta c ON dc.id_cuenta = c.id_cuenta
+                        WHERE DATE(c.fecha_apertura) BETWEEN @inicio AND @fin
+                              AND c.estado_cuenta = 'Cerrada'
+                        GROUP BY p.id_producto
+                        ORDER BY CantidadVendida DESC
+                        LIMIT 10";
+
+                    using (var cmd = new SQLiteCommand(sql, con))
+                    {
+                        cmd.Parameters.AddWithValue("@inicio", fechaInicio.Date);
+                        cmd.Parameters.AddWithValue("@fin", fechaFin.Date);
+
+                        using (var adapter = new System.Data.SQLite.SQLiteDataAdapter(cmd))
+                        {
+                            adapter.Fill(dt);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show($"Error al obtener productos más vendidos: {ex.Message}", "Error", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+            }
+            return dt;
+        }
+
+        /// <summary>
+        /// Obtiene el reporte de ingresos por empleado en un rango de fechas.
+        /// </summary>
+        public static System.Data.DataTable ObtenerReporteIngresosPorEmpleado(DateTime fechaInicio, DateTime fechaFin)
+        {
+            var dt = new System.Data.DataTable();
+            try
+            {
+                using (var con = new SQLiteConnection(ConnectionString))
+                {
+                    con.Open();
+                    string sql = @"
+                        SELECT 
+                            u.nombre as Empleado,
+                            u.rol as Rol,
+                            COUNT(DISTINCT c.id_cuenta) as CantidadOrdenes,
+                            ROUND(COALESCE(SUM(c.total), 0), 2) as IngresoGenerado
+                        FROM cuenta c
+                        INNER JOIN usuario u ON c.id_usuario_apertura = u.id_usuario
+                        WHERE DATE(c.fecha_apertura) BETWEEN @inicio AND @fin
+                              AND c.estado_cuenta = 'Cerrada'
+                        GROUP BY u.id_usuario
+                        ORDER BY IngresoGenerado DESC";
+
+                    using (var cmd = new SQLiteCommand(sql, con))
+                    {
+                        cmd.Parameters.AddWithValue("@inicio", fechaInicio.Date);
+                        cmd.Parameters.AddWithValue("@fin", fechaFin.Date);
+
+                        using (var adapter = new System.Data.SQLite.SQLiteDataAdapter(cmd))
+                        {
+                            adapter.Fill(dt);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show($"Error al obtener ingresos por empleado: {ex.Message}", "Error", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+            }
+            return dt;
+        }
+
+        /// <summary>
+        /// Obtiene el reporte de consumo de inventario (insumos) en un rango de fechas.
+        /// </summary>
+        public static System.Data.DataTable ObtenerReporteConsumoInventario(DateTime fechaInicio, DateTime fechaFin)
+        {
+            var dt = new System.Data.DataTable();
+            try
+            {
+                using (var con = new SQLiteConnection(ConnectionString))
+                {
+                    con.Open();
+                    string sql = @"
+                        SELECT 
+                            i.Nombre as Insumo,
+                            i.Unidad as Unidad,
+                            i.StockActual as StockActual,
+                            i.StockMinimo as StockMinimo,
+                            ROUND(i.Costo, 2) as CostoUnitario,
+                            ROUND(i.StockActual * i.Costo, 2) as CostoTotal
+                        FROM Insumos i
+                        ORDER BY i.Nombre";
+
+                    using (var cmd = new SQLiteCommand(sql, con))
+                    {
+                        using (var adapter = new System.Data.SQLite.SQLiteDataAdapter(cmd))
+                        {
+                            adapter.Fill(dt);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show($"Error al obtener consumo de inventario: {ex.Message}", "Error", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+            }
+            return dt;
+        }
+
+        /// <summary>
+        /// Valida la conexión a la base de datos.
+        /// </summary>
+        /// <returns>true si la conexión es exitosa</returns>
+        public static bool ValidarConexion()
+        {
+            try
+            {
+                using (var con = new SQLiteConnection(ConnectionString))
+                {
+                    con.Open();
+                    using (var cmd = new SQLiteCommand("SELECT 1", con))
+                    {
+                        cmd.ExecuteScalar();
+                    }
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Inserta datos de prueba para demostración de reportes.
+        /// Solo se ejecuta si la tabla está vacía.
+        /// </summary>
+        public static void SembrarDatosPrueba()
+        {
+            string nombreArchivo = NombreArchivo;
+            if (!File.Exists(nombreArchivo)) return;
+
+            using (var con = new SQLiteConnection(ConnectionString))
+            {
+                con.Open();
+
+                // Verificar si ya hay datos
+                using (var cmd = new SQLiteCommand("SELECT COUNT(*) FROM cuenta;", con))
+                {
+                    object result = cmd.ExecuteScalar();
+                    long count = result != null ? Convert.ToInt64(result) : 0L;
+                    if (count > 0)
+                        return;  // Ya hay datos
+                }
+
+                try
+                {
+                    // Insertar usuario de prueba (solo si no existe)
+                    using (var cmd = new SQLiteCommand(
+                        "INSERT OR IGNORE INTO usuario (nombre, rol, pin_acceso, estado, permisos) VALUES ('Admin Prueba', 'Admin', '1234', 1, 'Pedidos,Cuentas,Inventario,Recetas,Reportes')", con))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Insertar categorías
+                    using (var cmd = new SQLiteCommand(
+                        "INSERT INTO categoria (nombre, descripcion) VALUES ('Bebidas', 'Bebidas varias'), ('Platos Principales', 'Platos principales'), ('Postres', 'Postres y dulces')", con))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Insertar productos
+                    using (var cmd = new SQLiteCommand(@"
+                        INSERT INTO producto (nombre, descripcion, precio, id_categoria, disponibilidad) VALUES 
+                        ('Agua Fresca', 'Agua de diferentes sabores', 25.00, 1, 1),
+                        ('Refresco', 'Refrescos variados', 30.00, 1, 1),
+                        ('Tacos', 'Tacos al pastor', 120.00, 2, 1),
+                        ('Carne Asada', 'Carne asada con tortillas', 150.00, 2, 1),
+                        ('Ensalada', 'Ensalada fresca', 80.00, 2, 1),
+                        ('Flan', 'Flan casero', 45.00, 3, 1)", con))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Insertar mesa
+                    using (var cmd = new SQLiteCommand(
+                        "INSERT INTO mesa (numero_mesa, capacidad, estado) VALUES (1, 4, 'Ocupada')", con))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    // Insertar cuentas con datos de prueba (últimos 7 días)
+                    DateTime hoy = DateTime.Now;
+                    for (int i = 0; i < 7; i++)
+                    {
+                        DateTime fecha = hoy.AddDays(-i);
+                        decimal total = 250 + (i * 50);
+                        decimal subtotal = total * 0.8m;
+
+                        string sql = $@"
+                            INSERT INTO cuenta (id_mesa, id_usuario_apertura, fecha_apertura, fecha_cierre, 
+                                              estado_cuenta, tipo_pedido, subtotal, total) 
+                            VALUES (1, 1, '{fecha:yyyy-MM-dd HH:mm:ss}', '{fecha.AddHours(2):yyyy-MM-dd HH:mm:ss}', 
+                                   'Cerrada', 'Local', {subtotal}, {total})";
+
+                        using (var cmd = new SQLiteCommand(sql, con))
+                        {
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Insertar detalles de cuenta
+                    using (var cmd = new SQLiteCommand(@"
+                        INSERT INTO detalle_cuenta (id_cuenta, id_producto, cantidad, precio_unitario, subtotal, estado_preparacion) 
+                        SELECT 1, 1, 2, 25.00, 50.00, 'Completado'
+                        UNION ALL
+                        SELECT 1, 3, 3, 120.00, 360.00, 'Completado'
+                        UNION ALL
+                        SELECT 2, 2, 1, 30.00, 30.00, 'Completado'
+                        UNION ALL
+                        SELECT 3, 4, 2, 150.00, 300.00, 'Completado'", con))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    System.Windows.Forms.MessageBox.Show(
+                        "✅ Datos de prueba insertados correctamente.\nAhora puedes ver los reportes con datos de ejemplo.",
+                        "Datos de Prueba", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.Forms.MessageBox.Show($"Error al insertar datos de prueba: {ex.Message}", "Error", 
+                        System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Error);
+                }
+            }
         }
     }
 }
