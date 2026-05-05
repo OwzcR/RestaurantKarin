@@ -37,11 +37,14 @@ namespace RestaurantKarin
 
         private sealed class CuentaItem
         {
-            public int     Id      { get; init; }
-            public string  Folio   { get; init; } = "";
-            public string  Estado  { get; init; } = "";
-            public decimal Total   { get; init; }
-            public bool    Abierta { get; init; }
+            public int      Id            { get; init; }
+            public string   Folio         { get; init; } = "";
+            public string   Estado        { get; init; } = "";
+            public decimal  Total         { get; init; }
+            public bool     Abierta       { get; init; }
+            public int      NumeroMesa    { get; init; }
+            public int      IdMesa        { get; init; }
+            public DateTime FechaApertura { get; init; }
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -164,10 +167,12 @@ namespace RestaurantKarin
                 using var con = new SQLiteConnection(Conn);
                 con.Open();
                 using var cmd = new SQLiteCommand(@"
-                    SELECT id_cuenta, fecha_apertura, estado_cuenta,
-                           COALESCE(subtotal, 0) AS monto
-                    FROM   cuenta
-                    ORDER  BY fecha_apertura DESC;", con);
+                    SELECT c.id_cuenta, c.id_mesa, c.fecha_apertura, c.estado_cuenta,
+                           COALESCE(c.subtotal, 0) AS monto,
+                           COALESCE(m.numero_mesa, 0) AS numero_mesa
+                    FROM   cuenta c
+                    LEFT JOIN mesa m ON m.id_mesa = c.id_mesa
+                    ORDER  BY c.fecha_apertura DESC;", con);
                 using var r = cmd.ExecuteReader();
                 while (r.Read())
                 {
@@ -179,11 +184,14 @@ namespace RestaurantKarin
                     int id = Convert.ToInt32(r["id_cuenta"]);
                     _cuentas.Add(new CuentaItem
                     {
-                        Id      = id,
-                        Folio   = $"{fecha:yyyyMMdd}-{id:D3}",
-                        Estado  = estadoRaw == "Abierta" ? "Activa" : "Pagada",
-                        Total   = Convert.ToDecimal(r["monto"]),
-                        Abierta = estadoRaw == "Abierta"
+                        Id            = id,
+                        Folio         = $"{fecha:yyyyMMdd}-{id:D3}",
+                        Estado        = estadoRaw == "Abierta" ? "Activa" : "Pagada",
+                        Total         = Convert.ToDecimal(r["monto"]),
+                        Abierta       = estadoRaw == "Abierta",
+                        NumeroMesa    = Convert.ToInt32(r["numero_mesa"]),
+                        IdMesa        = r["id_mesa"] != DBNull.Value ? Convert.ToInt32(r["id_mesa"]) : 0,
+                        FechaApertura = fecha
                     });
                 }
             }
@@ -236,13 +244,23 @@ namespace RestaurantKarin
                 BackColor = Color.Transparent
             };
 
+            var lblMesa = new Label
+            {
+                Text      = c.NumeroMesa > 0 ? $"Mesa : {c.NumeroMesa}" : "Mesa : —",
+                Font      = FntBold9,
+                ForeColor = Color.FromArgb(30, 30, 30),
+                AutoSize  = true,
+                Location  = new Point(230, 16),
+                BackColor = Color.Transparent
+            };
+
             var lblEstado = new Label
             {
                 Text      = $"Estado : {c.Estado}",
                 Font      = FntBold9,
                 ForeColor = Color.FromArgb(30, 30, 30),
                 AutoSize  = true,
-                Location  = new Point(230, 16),
+                Location  = new Point(360, 16),
                 BackColor = Color.Transparent
             };
 
@@ -252,11 +270,12 @@ namespace RestaurantKarin
                 Font      = FntBold9,
                 ForeColor = Color.FromArgb(30, 30, 30),
                 AutoSize  = true,
-                Location  = new Point(390, 16),
+                Location  = new Point(500, 16),
                 BackColor = Color.Transparent
             };
 
             row.Controls.Add(lblId);
+            row.Controls.Add(lblMesa);
             row.Controls.Add(lblEstado);
             row.Controls.Add(lblTotal);
 
@@ -273,10 +292,10 @@ namespace RestaurantKarin
 
                 btnCerrar.Click += (_, _) =>
                 {
-                    if (MessageBox.Show($"¿Cerrar la cuenta {c.Folio}?", "Confirmar",
-                            MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    using var dlg = new FormCerrarPedido(0, c.Total, c.NumeroMesa, c.Folio);
+                    if (dlg.ShowDialog(FindForm()) == DialogResult.OK && dlg.Confirmado)
                     {
-                        EjecutarCierre(c.Id);
+                        CuentaRepository.CerrarCuentaPorId(c.Id);
                         CargarCuentas();
                     }
                 };
@@ -300,34 +319,25 @@ namespace RestaurantKarin
         // ─────────────────────────────────────────────────────────────────────
         //  Actions
         // ─────────────────────────────────────────────────────────────────────
-        private void EjecutarCierre(int idCuenta)
+        private void MostrarDetalles(CuentaItem c)
         {
-            try
+            var mesa = new MesaModel
             {
-                using var con = new SQLiteConnection(Conn);
-                con.Open();
-                using var cmd = new SQLiteCommand(@"
-                    UPDATE cuenta
-                    SET estado_cuenta = 'Cerrada',
-                        fecha_cierre  = CURRENT_TIMESTAMP
-                    WHERE id_cuenta = @id;", con);
-                cmd.Parameters.AddWithValue("@id", idCuenta);
-                cmd.ExecuteNonQuery();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error al cerrar cuenta: " + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private static void MostrarDetalles(CuentaItem c)
-        {
-            MessageBox.Show(
-                $"Folio  : {c.Folio}\nEstado : {c.Estado}\nTotal  : ${c.Total:0.00}",
-                "Detalles de cuenta",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+                Id          = c.IdMesa,
+                NumeroMesa  = c.NumeroMesa,
+                IdCuenta    = c.Id,
+                HoraLlegada = c.FechaApertura,
+                Activa      = c.Abierta,
+                Nombre      = c.NumeroMesa > 0 ? $"MESA : {c.NumeroMesa}" : "—"
+            };
+            var mainForm = FindForm();
+            if (mainForm == null) return;
+            using var overlay = CreateOverlay(mainForm);
+            overlay.Show(mainForm);
+            using var frm = new FormDetallesMesa(mesa);
+            if (frm.ShowDialog(overlay) == DialogResult.OK)
+                CargarCuentas();
+            overlay.Close();
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -396,6 +406,22 @@ namespace RestaurantKarin
                 if (btn.Width <= 0 || btn.Height <= 0) return;
                 using var path = RoundedPath(new Rectangle(0, 0, btn.Width, btn.Height), radius);
                 btn.Region = new Region(path);
+            };
+        }
+
+        private static Form CreateOverlay(Form owner)
+        {
+            var origin = owner.PointToScreen(Point.Empty);
+            return new Form
+            {
+                FormBorderStyle   = FormBorderStyle.None,
+                AllowTransparency = true,
+                BackColor         = Color.FromArgb(13, 41, 78),
+                Opacity           = 0.80,
+                StartPosition     = FormStartPosition.Manual,
+                Location          = origin,
+                Size              = owner.ClientSize,
+                ShowInTaskbar     = false
             };
         }
 

@@ -21,6 +21,7 @@ namespace RestaurantKarin
                     m.numero_mesa,
                     m.capacidad,
                     m.estado,
+                    c.id_cuenta,
                     c.subtotal,
                     c.fecha_apertura
                 FROM mesa m
@@ -38,17 +39,20 @@ namespace RestaurantKarin
 
                 lista.Add(new MesaModel
                 {
-                    Id = Convert.ToInt32(reader["id_mesa"]),
-                    Nombre = $"MESA : {reader["numero_mesa"]}",
-                    CapacidadMax = reader["capacidad"] == DBNull.Value
-                                    ? 0 : Convert.ToInt32(reader["capacidad"]),
-                    Activa = activa,
-                    Cuenta = activa && reader["subtotal"] != DBNull.Value
-                                    ? Convert.ToDecimal(reader["subtotal"]) : 0,
-                    HoraLlegada = activa && reader["fecha_apertura"] != DBNull.Value
-                                    ? DateTime.SpecifyKind(Convert.ToDateTime(reader["fecha_apertura"]), DateTimeKind.Utc).ToLocalTime()
-                                    : DateTime.Now,
-                    Personas = 1,
+                    Id             = Convert.ToInt32(reader["id_mesa"]),
+                    Nombre         = $"MESA : {reader["numero_mesa"]}",
+                    NumeroMesa     = Convert.ToInt32(reader["numero_mesa"]),
+                    CapacidadMax   = reader["capacidad"] == DBNull.Value
+                                       ? 0 : Convert.ToInt32(reader["capacidad"]),
+                    Activa         = activa,
+                    Cuenta         = activa && reader["subtotal"] != DBNull.Value
+                                       ? Convert.ToDecimal(reader["subtotal"]) : 0,
+                    HoraLlegada    = activa && reader["fecha_apertura"] != DBNull.Value
+                                       ? DateTime.SpecifyKind(Convert.ToDateTime(reader["fecha_apertura"]), DateTimeKind.Utc).ToLocalTime()
+                                       : DateTime.Now,
+                    IdCuenta       = activa && reader["id_cuenta"] != DBNull.Value
+                                       ? Convert.ToInt32(reader["id_cuenta"]) : 0,
+                    Personas       = 1,
                     PropinaPercent = 10
                 });
             }

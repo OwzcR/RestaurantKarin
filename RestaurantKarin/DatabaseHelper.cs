@@ -140,7 +140,7 @@ namespace RestaurantKarin
 
                         INSERT INTO usuario (nombre, rol, pin_acceso, permisos)
                         VALUES ('Mesero Estrella', 'Mesero', '5678', 'Pedidos,Cuentas');
-                        INSERT INTO mesa (numero_mesa, capacidad) VALUES (1, 4), (2, 4), (3, 6);
+                        INSERT INTO mesa (numero_mesa, capacidad) VALUES (1, 4), (2, 4), (3, 6), (4, 4), (5, 4), (6, 6), (7, 2), (8, 6);
 
                         INSERT INTO categoria (nombre, descripcion) VALUES ('Mariscos Frescos', 'Ceviches y más');
 
@@ -156,6 +156,18 @@ namespace RestaurantKarin
 
             AsegurarTablasRecetas();
             AsegurarColumnaPermisos();
+            AsegurarMesasIniciales();
+        }
+
+        public static void AsegurarMesasIniciales()
+        {
+            if (!File.Exists("karin_pos.db")) return;
+            using var con = new SQLiteConnection("Data Source=karin_pos.db;Version=3;");
+            con.Open();
+            using var cmd = new SQLiteCommand(@"
+                INSERT OR IGNORE INTO mesa (numero_mesa, capacidad)
+                VALUES (4, 4), (5, 4), (6, 6), (7, 2), (8, 6);", con);
+            cmd.ExecuteNonQuery();
         }
 
         // Agrega columna permisos a DBs existentes que no la tienen

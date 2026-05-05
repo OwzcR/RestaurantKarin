@@ -9,6 +9,8 @@ namespace RestaurantKarin
     public class FormCerrarPedido : Form
     {
         private readonly decimal _total;
+        private readonly int    _numeroMesa;
+        private readonly string _folio;
         private TextBox _txtMonto          = null!;
         private TextBox _txtPropina        = null!;
         private TextBox _txtCambio         = null!;
@@ -29,9 +31,11 @@ namespace RestaurantKarin
         [DllImport("user32.dll")]
         private static extern bool ReleaseCapture();
 
-        public FormCerrarPedido(int mesaId, decimal total)
+        public FormCerrarPedido(int mesaId, decimal total, int numeroMesa = 0, string folio = "")
         {
-            _total = total;
+            _total      = total;
+            _numeroMesa = numeroMesa;
+            _folio      = folio;
             BuildUI();
         }
 
@@ -133,7 +137,12 @@ namespace RestaurantKarin
             int y = 28;
 
             // ═══ RESUMEN Y PAGO ═══════════════════════════════════════════════
+            int titleY = y;
             SectionHead(p, "RESUMEN Y PAGO", lx, rx, ref y);
+            if (_numeroMesa > 0)
+                Add(p, Bold($"Mesa : {_numeroMesa}", 530, titleY));
+            if (!string.IsNullOrEmpty(_folio))
+                Add(p, Bold($"ID : {_folio}", 670, titleY));
 
             Add(p, Bold("TOTAL A PAGAR:", lx, y));
             Add(p, Plain($"${_total:0}", lx + 242, y));

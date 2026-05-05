@@ -12,31 +12,37 @@ namespace RestaurantKarin
 
     public class MesaModel
     {
-        public int Id { get; set; }
-        public string Nombre { get; set; } = string.Empty;
-        public int CapacidadMax { get; set; }
-        public bool Activa { get; set; }
-        public int Personas { get; set; }
-        public DateTime HoraLlegada { get; set; }
-        public decimal Cuenta { get; set; }
-        public int PropinaPercent { get; set; }
+        public int      Id            { get; set; }
+        public string   Nombre        { get; set; } = string.Empty;
+        public int      CapacidadMax  { get; set; }
+        public bool     Activa        { get; set; }
+        public int      Personas      { get; set; }
+        public DateTime HoraLlegada   { get; set; }
+        public decimal  Cuenta        { get; set; }
+        public int      PropinaPercent{ get; set; }
+        public int      NumeroMesa    { get; set; }
+        public int      IdCuenta      { get; set; }
     }
 
     
     public partial class Pedidos : UserControl
     {
         // ── Controls ─────────────────────────────────────────────────────────
-        private Panel PanelContenedor = null!;
-        private FlowLayoutPanel FlowActivas = null!;
+        private Panel PanelContenedor   = null!;
+        private FlowLayoutPanel FlowActivas     = null!;
         private FlowLayoutPanel FlowDisponibles = null!;
-        private Panel ScrollPanel = null!;
+        private Panel ScrollPanel        = null!;
+        private Panel _wrapActivas       = null!;
+        private Panel _wrapDisponibles   = null!;
 
         // ── State ─────────────────────────────────────────────────────────────
         private List<MesaModel> _mesas = new();
 
         // ── Layout constants ──────────────────────────────────────────────────
-        private const int CardHeight = 175;
-        private const int RowHeight  = 56;
+        private const int CardHeight      = 175;
+        private const int RowHeight       = 56;
+        private const int MaxActivasH     = 570;  // ~3 cards
+        private const int MaxDisponiblesH = 280;  // ~4 rows
 
         // ── Palette ───────────────────────────────────────────────────────────
         private static readonly Color MainBg         = Color.FromArgb(26, 58, 107);
@@ -161,36 +167,56 @@ namespace RestaurantKarin
             // ── Search bar ────────────────────────────────────────────────────
             var searchPanel = BuildSearchBar();
 
-            // ── Section labels + flow panels ──────────────────────────────────
-            var lblActivas = MakeSectionLabel("Mesas Activas :");
+            // ── Section labels + scrollable section wrappers ──────────────────
+            var lblActivas     = MakeSectionLabel("Mesas Activas :");
             var lblDisponibles = MakeSectionLabel("Mesas Disponibles :");
 
             FlowActivas = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top,
-                Height = 0,
+                Dock          = DockStyle.Top,
+                Height        = 0,
                 FlowDirection = FlowDirection.TopDown,
-                WrapContents = false,
-                Padding = new Padding(0, 6, 0, 6),
-                BackColor = Color.Transparent
+                WrapContents  = false,
+                Padding       = new Padding(0, 6, 0, 6),
+                BackColor     = Color.Transparent
             };
             EnableDoubleBuffer(FlowActivas);
 
+            _wrapActivas = new Panel
+            {
+                Dock        = DockStyle.Top,
+                Height      = 0,
+                AutoScroll  = true,
+                BackColor   = Color.Transparent
+            };
+            EnableDoubleBuffer(_wrapActivas);
+            _wrapActivas.Controls.Add(FlowActivas);
+
             FlowDisponibles = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top,
-                Height = 0,
+                Dock          = DockStyle.Top,
+                Height        = 0,
                 FlowDirection = FlowDirection.TopDown,
-                WrapContents = false,
-                Padding = new Padding(0, 6, 0, 6),
-                BackColor = Color.Transparent
+                WrapContents  = false,
+                Padding       = new Padding(0, 6, 0, 6),
+                BackColor     = Color.Transparent
             };
             EnableDoubleBuffer(FlowDisponibles);
 
+            _wrapDisponibles = new Panel
+            {
+                Dock       = DockStyle.Top,
+                Height     = 0,
+                AutoScroll = true,
+                BackColor  = Color.Transparent
+            };
+            EnableDoubleBuffer(_wrapDisponibles);
+            _wrapDisponibles.Controls.Add(FlowDisponibles);
+
             // Controls added bottom-to-top when Dock = Top
-            ScrollPanel.Controls.Add(FlowDisponibles);
+            ScrollPanel.Controls.Add(_wrapDisponibles);
             ScrollPanel.Controls.Add(lblDisponibles);
-            ScrollPanel.Controls.Add(FlowActivas);
+            ScrollPanel.Controls.Add(_wrapActivas);
             ScrollPanel.Controls.Add(lblActivas);
             ScrollPanel.Controls.Add(searchPanel);
 
@@ -214,7 +240,7 @@ namespace RestaurantKarin
             FlowActivas.Controls.Clear();
             FlowDisponibles.Controls.Clear();
 
-            foreach (var m in _mesas.Where(x => x.Activa))
+            foreach (var m in _mesas.Where(x => x.Activa).OrderByDescending(x => x.HoraLlegada))
             {
                 var card = BuildActivaCard(m);
                 card.Margin = new Padding(0, 0, 0, 10);
@@ -322,7 +348,7 @@ namespace RestaurantKarin
                 : _mesas.Where(m => m.Id.ToString().Contains(query)
                                || m.Nombre.ToLower().Contains(query)).ToList();
 
-            foreach (var m in filtered.Where(x => x.Activa))
+            foreach (var m in filtered.Where(x => x.Activa).OrderByDescending(x => x.HoraLlegada))
             {
                 var card = BuildActivaCard(m);
                 card.Margin = new Padding(0, 0, 0, 10);
@@ -503,21 +529,34 @@ namespace RestaurantKarin
 
         private void OnVerDetalles(MesaModel m)
         {
-            // TODO: open Detalles sub-form
-            var info = $"Mesa {m.Id}\nPersonas: {m.Personas}\nLlegada: {m.HoraLlegada:hh:mm tt}\n" +
-                       $"Cuenta: {m.Cuenta:C}\nPropina ({m.PropinaPercent}%): {m.Cuenta * m.PropinaPercent / 100:C}";
-            MessageBox.Show(info, "Detalles de Mesa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            var mainForm = FindForm();
+            if (mainForm == null) return;
+            using var overlay = CreateOverlay(mainForm);
+            overlay.Show(mainForm);
+            using var frm = new FormDetallesMesa(m);
+            if (frm.ShowDialog(overlay) == DialogResult.OK)
+            {
+                _mesas = MesaRepository.GetAll();
+                RefreshMesaCards();
+            }
+            overlay.Close();
         }
 
         private void OnCerrarCuenta(MesaModel m)
         {
-            using var dlg = new FormCerrarPedido(m.Id, m.Cuenta);
-            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.Confirmado)
+            string folio = m.IdCuenta > 0 ? $"{m.HoraLlegada:yyyyMMdd}-{m.IdCuenta:D3}" : "";
+            var mainForm = FindForm();
+            if (mainForm == null) return;
+            using var overlay = CreateOverlay(mainForm);
+            overlay.Show(mainForm);
+            using var dlg = new FormCerrarPedido(m.Id, m.Cuenta, m.NumeroMesa, folio);
+            if (dlg.ShowDialog(overlay) == DialogResult.OK && dlg.Confirmado)
             {
                 CuentaRepository.CerrarCuenta(m.Id);
                 _mesas = MesaRepository.GetAll();
                 RefreshMesaCards();
             }
+            overlay.Close();
         }
 
         private void OnAbrirCuenta(MesaModel m)
@@ -543,16 +582,24 @@ namespace RestaurantKarin
         private void AdjustCardWidths()
         {
             if (FlowActivas == null || FlowDisponibles == null || ScrollPanel == null) return;
-            int w = Math.Max(400, ScrollPanel.ClientSize.Width - 48);
-            foreach (Control c in FlowActivas.Controls) c.Width = w;
-            foreach (Control c in FlowDisponibles.Controls) c.Width = w;
+            int wA = Math.Max(400, (_wrapActivas    != null ? _wrapActivas.ClientSize.Width    : ScrollPanel.ClientSize.Width - 48));
+            int wD = Math.Max(400, (_wrapDisponibles != null ? _wrapDisponibles.ClientSize.Width : ScrollPanel.ClientSize.Width - 48));
+            foreach (Control c in FlowActivas.Controls)    c.Width = wA;
+            foreach (Control c in FlowDisponibles.Controls) c.Width = wD;
         }
 
         private void UpdateFlowHeights()
         {
             if (FlowActivas == null || FlowDisponibles == null) return;
-            FlowActivas.Height = Math.Max(12, FlowActivas.Controls.Count * (CardHeight + 10) + 12);
-            FlowDisponibles.Height = Math.Max(12, FlowDisponibles.Controls.Count * (RowHeight + 8) + 12);
+
+            int hA = Math.Max(12, FlowActivas.Controls.Count    * (CardHeight + 10) + 12);
+            int hD = Math.Max(12, FlowDisponibles.Controls.Count * (RowHeight  + 8)  + 12);
+
+            FlowActivas.Height    = hA;
+            FlowDisponibles.Height = hD;
+
+            if (_wrapActivas    != null) _wrapActivas.Height    = Math.Min(hA, MaxActivasH);
+            if (_wrapDisponibles != null) _wrapDisponibles.Height = Math.Min(hD, MaxDisponiblesH);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -657,6 +704,22 @@ namespace RestaurantKarin
                 if (btn.Width <= 0 || btn.Height <= 0) return;
                 using var path = RoundedRect(new Rectangle(0, 0, btn.Width, btn.Height), radius);
                 btn.Region = new Region(path);
+            };
+        }
+
+        private static Form CreateOverlay(Form owner)
+        {
+            var origin = owner.PointToScreen(Point.Empty);
+            return new Form
+            {
+                FormBorderStyle   = FormBorderStyle.None,
+                AllowTransparency = true,
+                BackColor         = Color.FromArgb(13, 41, 78),
+                Opacity           = 0.80,
+                StartPosition     = FormStartPosition.Manual,
+                Location          = origin,
+                Size              = owner.ClientSize,
+                ShowInTaskbar     = false
             };
         }
 

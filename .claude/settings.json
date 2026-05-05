@@ -4,7 +4,14 @@
       "PowerShell(git fetch --all 2>&1)",
       "PowerShell($gitPath = \"C:\\\\Program Files\\\\Git\\\\bin\\\\git.exe\"; if \\(Test-Path $gitPath\\) { & $gitPath status } else { Get-Command git -ErrorAction SilentlyContinue })",
       "PowerShell($env:PATH; Write-Host \"---\"; Where-Object { $_ } -InputObject \\(Get-ChildItem \"C:\\\\Program Files\\\\Git\" -ErrorAction SilentlyContinue | Select-Object -First 5\\))",
-      "PowerShell($gitDesktopGit = Get-ChildItem \"C:\\\\Users\\\\gaelc\\\\AppData\\\\Local\\\\GitHubDesktop\" -Recurse -Filter \"git.exe\" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName; Write-Host \"Git encontrado en: $gitDesktopGit\")"
+      "PowerShell($gitDesktopGit = Get-ChildItem \"C:\\\\Users\\\\gaelc\\\\AppData\\\\Local\\\\GitHubDesktop\" -Recurse -Filter \"git.exe\" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName; Write-Host \"Git encontrado en: $gitDesktopGit\")",
+      "PowerShell(Get-Command git -ErrorAction SilentlyContinue)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/gaelc/AppData/Local/GitHubDesktop/bin/**)",
+      "Read(//c/Users/gaelc/AppData/Local/GitHubDesktop/**)",
+      "Read(//c/Users/gaelc/AppData/Local/**)",
+      "Read(//c/Program Files \\(x86\\)/Git/bin/**)",
+      "Read(//c/Users/gaelc/AppData/Roaming/**)"
     ]
   }
 }
