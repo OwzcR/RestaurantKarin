@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Configuration;
 using System.Data.SQLite;
 using System.Drawing;
@@ -11,7 +11,8 @@ namespace RestaurantKarin
     {
         private Color colorAzulBtn = Color.FromArgb(26, 90, 122);
         private Color colorGrisFondo = Color.FromArgb(230, 233, 235);
-        private TextBox txtNombre, txtFecha, txtId, txtMinimo, txtActual, txtCosto, txtUnidad;
+        private TextBox txtNombre, txtId, txtMinimo, txtActual, txtCosto, txtUnidad;
+        private DateTimePicker dtpFecha; 
 
         public FormEditarInsumo()
         {
@@ -38,17 +39,27 @@ namespace RestaurantKarin
             RedondearControl(pnlCuerpo, 15);
 
             txtNombre = CrearCampo(pnlCuerpo, "Nombre del insumo:", 20, 20, 450);
-            txtFecha = CrearCampo(pnlCuerpo, "Última entrada:", 100, 20, 340);
-            txtId = CrearCampo(pnlCuerpo, "ID del insumo (No editable):", 100, 380, 340);
 
-            // BLOQUEO VISUAL DEL ID
+            
+            dtpFecha = CrearCalendario(pnlCuerpo, "Última entrada:", 100, 20, 340);
+
+            txtId = CrearCampo(pnlCuerpo, "ID del insumo:", 100, 380, 340);
+
+ 
             txtId.ReadOnly = true;
             txtId.BackColor = Color.FromArgb(170, 170, 170);
             txtId.Parent.BackColor = Color.FromArgb(170, 170, 170);
+            txtId.KeyPress += SoloNumeros_KeyPress;
 
             txtMinimo = CrearCampo(pnlCuerpo, "Stock Mínimo:", 180, 20, 340);
+            txtMinimo.KeyPress += SoloNumeros_KeyPress;
+
             txtActual = CrearCampo(pnlCuerpo, "Stock Actual:", 180, 380, 340);
+            txtActual.KeyPress += SoloNumeros_KeyPress;
+
             txtCosto = CrearCampo(pnlCuerpo, "Costo Unitario:", 260, 20, 340);
+            txtCosto.KeyPress += SoloNumeros_KeyPress;
+
             txtUnidad = CrearCampo(pnlCuerpo, "Unidad:", 260, 380, 340);
 
             Button btnGuardar = new Button { Text = "💾 GUARDAR CAMBIOS", Size = new Size(340, 50), Location = new Point(425, 470), BackColor = colorAzulBtn, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10, FontStyle.Bold), Cursor = Cursors.Hand };
@@ -69,8 +80,23 @@ namespace RestaurantKarin
             txtActual.Text = actual; txtActual.ForeColor = Color.Black;
             txtUnidad.Text = uni; txtUnidad.ForeColor = Color.Black;
             txtMinimo.Text = min; txtMinimo.ForeColor = Color.Black;
-            txtFecha.Text = fecha; txtFecha.ForeColor = Color.Black;
             txtCosto.Text = costo.Replace("$", "").Trim(); txtCosto.ForeColor = Color.Black;
+
+            // Cargar fecha en el calendario
+            if (DateTime.TryParse(fecha, out DateTime fechaValida))
+                dtpFecha.Value = fechaValida;
+        }
+
+        private void SoloNumeros_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && (e.KeyChar != '.'))
+            {
+                e.Handled = true;
+            }
+            if ((e.KeyChar == '.') && ((sender as TextBox).Text.IndexOf('.') > -1))
+            {
+                e.Handled = true;
+            }
         }
 
         private void GuardarCambios_Click(object sender, EventArgs e)
@@ -88,7 +114,7 @@ namespace RestaurantKarin
                         cmd.Parameters.AddWithValue("@sa", txtActual.Text);
                         cmd.Parameters.AddWithValue("@u", txtUnidad.Text);
                         cmd.Parameters.AddWithValue("@sm", txtMinimo.Text);
-                        cmd.Parameters.AddWithValue("@f", txtFecha.Text);
+                        cmd.Parameters.AddWithValue("@f", dtpFecha.Value.ToString("dd/MM/yyyy"));
                         cmd.Parameters.AddWithValue("@c", txtCosto.Text);
                         cmd.Parameters.AddWithValue("@id", txtId.Text);
                         cmd.ExecuteNonQuery();
@@ -111,6 +137,27 @@ namespace RestaurantKarin
             t.Enter += (s, e) => { if (t.Text == "Escribe aquí...") { t.Text = ""; t.ForeColor = Color.Black; } };
             pnlTxt.Controls.Add(t);
             return t;
+        }
+
+        private DateTimePicker CrearCalendario(Panel p, string titulo, int y, int x, int ancho)
+        {
+            Label lbl = new Label { Text = titulo, Location = new Point(x, y), AutoSize = true, Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(64, 64, 64) };
+            p.Controls.Add(lbl);
+
+            Panel pnlDtp = new Panel { Size = new Size(ancho, 35), Location = new Point(x, y + 22), BackColor = Color.White };
+            p.Controls.Add(pnlDtp);
+            RedondearControl(pnlDtp, 15);
+
+            DateTimePicker dtp = new DateTimePicker
+            {
+                Size = new Size(ancho - 5, 25),
+                Location = new Point(2, 6),
+                Format = DateTimePickerFormat.Short,
+                CalendarFont = new Font("Segoe UI", 10)
+            };
+
+            pnlDtp.Controls.Add(dtp);
+            return dtp;
         }
 
         private void RedondearControl(Control c, int r)
