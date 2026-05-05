@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(git fetch --all 2>&1)",
+      "PowerShell($gitPath = \"C:\\\\Program Files\\\\Git\\\\bin\\\\git.exe\"; if \\(Test-Path $gitPath\\) { & $gitPath status } else { Get-Command git -ErrorAction SilentlyContinue })",
+      "PowerShell($env:PATH; Write-Host \"---\"; Where-Object { $_ } -InputObject \\(Get-ChildItem \"C:\\\\Program Files\\\\Git\" -ErrorAction SilentlyContinue | Select-Object -First 5\\))",
+      "PowerShell($gitDesktopGit = Get-ChildItem \"C:\\\\Users\\\\gaelc\\\\AppData\\\\Local\\\\GitHubDesktop\" -Recurse -Filter \"git.exe\" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName; Write-Host \"Git encontrado en: $gitDesktopGit\")"
+    ]
+  }
+}

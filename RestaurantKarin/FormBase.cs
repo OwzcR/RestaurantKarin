@@ -122,12 +122,8 @@ namespace RestaurantKarin
                 btnCuentas.Click += (s, e) =>
                 {
                     PanelContenedor.Controls.Clear();
-                    FormCuentas frm = new FormCuentas();
-                    frm.TopLevel = false;
-                    frm.FormBorderStyle = FormBorderStyle.None;
-                    frm.Dock = DockStyle.Fill;
-                    PanelContenedor.Controls.Add(frm);
-                    frm.Show();
+                    var cuentas = new FormCuentas { Dock = DockStyle.Fill };
+                    PanelContenedor.Controls.Add(cuentas);
                 };
                 menuButtons.Add(btnCuentas);
             }

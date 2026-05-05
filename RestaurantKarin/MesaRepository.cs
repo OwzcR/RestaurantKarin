@@ -46,7 +46,8 @@ namespace RestaurantKarin
                     Cuenta = activa && reader["subtotal"] != DBNull.Value
                                     ? Convert.ToDecimal(reader["subtotal"]) : 0,
                     HoraLlegada = activa && reader["fecha_apertura"] != DBNull.Value
-                                    ? Convert.ToDateTime(reader["fecha_apertura"]) : DateTime.Now,
+                                    ? DateTime.SpecifyKind(Convert.ToDateTime(reader["fecha_apertura"]), DateTimeKind.Utc).ToLocalTime()
+                                    : DateTime.Now,
                     Personas = 1,
                     PropinaPercent = 10
                 });

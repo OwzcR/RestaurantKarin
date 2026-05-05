@@ -35,8 +35,8 @@ namespace RestaurantKarin
         private List<MesaModel> _mesas = new();
 
         // ── Layout constants ──────────────────────────────────────────────────
-        private const int CardHeight = 130;
-        private const int RowHeight = 46;
+        private const int CardHeight = 175;
+        private const int RowHeight  = 56;
 
         // ── Palette ───────────────────────────────────────────────────────────
         private static readonly Color MainBg         = Color.FromArgb(26, 58, 107);
@@ -50,11 +50,11 @@ namespace RestaurantKarin
         private static readonly Color TextDark       = Color.FromArgb(30, 30, 30);
 
         // ── Shared fonts (created once, reused everywhere) ────────────────────
-        private static readonly Font FontBtn      = new("Sansation", 9, FontStyle.Bold);
-        private static readonly Font FontBold9    = new("Segoe UI", 9, FontStyle.Bold);
-        private static readonly Font FontRegular9 = new("Segoe UI", 9, FontStyle.Regular);
+        private static readonly Font FontBtn      = new("Sansation", 10, FontStyle.Bold);
+        private static readonly Font FontBold9    = new("Sansation", 11, FontStyle.Bold);
+        private static readonly Font FontRegular9 = new("Sansation", 10, FontStyle.Regular);
         private static readonly Font FontBold13   = new("Sansation", 13, FontStyle.Bold);
-        private static readonly Font FontBold10   = new("Sansation", 10, FontStyle.Bold);
+        private static readonly Font FontBold10   = new("Sansation", 11, FontStyle.Bold);
 
         public Pedidos()
         {
@@ -365,27 +365,27 @@ namespace RestaurantKarin
             // Table icon
             var iconPanel = new Panel
             {
-                Size = new Size(60, 70),
-                Location = new Point(16, 14),
+                Size = new Size(72, 92),
+                Location = new Point(14, 18),
                 BackColor = Color.Transparent
             };
             iconPanel.Paint += DrawTableIcon;
             card.Controls.Add(iconPanel);
 
-            // Info labels
-            int ix = 88;
-            card.Controls.Add(MakeInfoLabel($"MESA : {m.Id}", ix, 12));
-            card.Controls.Add(MakeInfoLabel($"Personas : {m.Personas}", ix + 130, 12));
-            card.Controls.Add(MakeInfoLabel($"Hora Llegada : {m.HoraLlegada.ToString("hh:mm tt").ToLower()}", ix + 300, 12));
-            card.Controls.Add(MakeInfoLabel($"Cuenta : {m.Cuenta:0}$", ix, 42));
-            card.Controls.Add(MakeInfoLabel($"Propina : {m.PropinaPercent}%", ix + 130, 42));
+            // Info labels — two-row grid matching the original design
+            int ix = 100;
+            card.Controls.Add(MakeInfoLabel($"MESA : {m.Id}",           ix,       22));
+            card.Controls.Add(MakeInfoLabel($"Personas : {m.Personas}", ix + 175, 22));
+            card.Controls.Add(MakeInfoLabel($"Hora Llegada : {m.HoraLlegada.ToString("hh:mm tt").ToLower()}", ix + 360, 22));
+            card.Controls.Add(MakeInfoLabel($"Cuenta : {m.Cuenta:0}$",  ix,       64));
+            card.Controls.Add(MakeInfoLabel($"Propina : {m.PropinaPercent}%",     ix + 175, 64));
 
             // ── Action button bar ─────────────────────────────────────────────
             // FIX: use TableLayoutPanel for reliable equal-width button columns
             var actionBar = new TableLayoutPanel
             {
-                Height = 34,
-                Dock = DockStyle.Bottom,       // FIX: Dock=Bottom is reliable
+                Height = 40,
+                Dock = DockStyle.Bottom,
                 ColumnCount = 3,
                 RowCount = 1,
                 BackColor = Color.Transparent,
@@ -439,7 +439,7 @@ namespace RestaurantKarin
                 Font = FontBold10,
                 ForeColor = AccentDarkNavy,
                 AutoSize = true,
-                Location = new Point(16, 12),
+                Location = new Point(16, 18),
                 BackColor = Color.Transparent
             };
 
@@ -449,7 +449,7 @@ namespace RestaurantKarin
                 Font = FontRegular9,
                 ForeColor = Color.FromArgb(60, 80, 120),
                 AutoSize = true,
-                Location = new Point(160, 14),
+                Location = new Point(200, 18),
                 BackColor = Color.Transparent
             };
 
@@ -460,7 +460,7 @@ namespace RestaurantKarin
                 ForeColor = Color.White,
                 BackColor = BtnAbrir,
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(116, 30),
+                Size = new Size(126, 36),
                 Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Right | AnchorStyles.Top
             };
@@ -468,10 +468,9 @@ namespace RestaurantKarin
             btnAbrir.Click += (_, _) => OnAbrirCuenta(m);
             ApplyRoundedButton(btnAbrir, 8);
 
-            // FIX: use Layout instead of a lambda closure that may capture stale width
             row.Layout += (_, _) =>
             {
-                btnAbrir.Location = new Point(row.Width - 130, 8);
+                btnAbrir.Location = new Point(row.Width - 140, 10);
             };
 
             row.Controls.Add(lblName);
@@ -512,15 +511,10 @@ namespace RestaurantKarin
 
         private void OnCerrarCuenta(MesaModel m)
         {
-            var r = MessageBox.Show(
-                $"¿Cerrar cuenta de Mesa {m.Id}?\nTotal: {m.Cuenta:C}",
-                "Cerrar Cuenta", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-            if (r == DialogResult.Yes)
+            using var dlg = new FormCerrarPedido(m.Id, m.Cuenta);
+            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.Confirmado)
             {
                 CuentaRepository.CerrarCuenta(m.Id);
-
-                // Refresca desde la BD
                 _mesas = MesaRepository.GetAll();
                 RefreshMesaCards();
             }
