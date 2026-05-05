@@ -107,33 +107,60 @@ namespace RestaurantKarin
                             FOREIGN KEY (id_receta) REFERENCES receta(id_receta) ON DELETE CASCADE
                         );
 
+                        CREATE TABLE tabla_unidades (
+                            id_unidad INTEGER PRIMARY KEY AUTOINCREMENT,
+                            nombre TEXT NOT NULL UNIQUE,
+                            abreviatura TEXT NOT NULL UNIQUE,
+                            tipo TEXT NOT NULL,
+                            descripcion TEXT
+                        );
+
                         CREATE TABLE Insumos (
                             id_insumo INTEGER PRIMARY KEY AUTOINCREMENT,
                             Nombre TEXT NOT NULL UNIQUE,
                             StockActual REAL DEFAULT 0.00,
+                            id_unidad INTEGER DEFAULT 1,
                             Unidad TEXT DEFAULT 'gramos',
                             StockMinimo REAL DEFAULT 0.00,
                             FechaEntrada TEXT DEFAULT '',
-                            Costo REAL DEFAULT 0.00
+                            Costo REAL DEFAULT 0.00,
+                            FOREIGN KEY (id_unidad) REFERENCES tabla_unidades(id_unidad)
                         );
 
-                        INSERT INTO Insumos (Nombre, StockActual, Unidad, StockMinimo, FechaEntrada, Costo) VALUES
-                        ('Aceite vegetal', 0, 'mililitros', 0, '', 0.03),
-                        ('Bistek de res', 0, 'gramos', 0, '', 0.65),
-                        ('Bolillo', 0, 'pieza', 0, '', 2.00),
-                        ('Carne Brioche', 0, 'gramos', 0, '', 0.45),
-                        ('Cebolla', 0, 'gramos', 0, '', 0.02),
-                        ('Chile serrano', 0, 'pieza', 0, '', 0.50),
-                        ('Cilantro', 0, 'gramos', 0, '', 0.03),
-                        ('Jitomate', 0, 'pieza', 0, '', 2.00),
-                        ('Lechuga Rabenta', 0, 'gramos', 0, '', 0.05),
-                        ('Limón', 0, 'pieza', 0, '', 0.80),
-                        ('Pan de Hamburguesa', 0, 'rebanada', 0, '', 3.00),
-                        ('Pierna de cerdo', 0, 'gramos', 0, '', 0.30),
-                        ('Pollo deshebrado', 0, 'gramos', 0, '', 0.25),
-                        ('Queso Americano', 0, 'rebanada', 0, '', 2.50),
-                        ('Sal', 0, 'pizca', 0, '', 0.01),
-                        ('Tortilla tostada', 0, 'pieza', 0, '', 1.50);
+                        INSERT INTO tabla_unidades (nombre, abreviatura, tipo, descripcion) VALUES
+                        ('Kilogramo', 'kg', 'Peso', 'Unidad de peso'),
+                        ('Gramo', 'g', 'Peso', 'Unidad de peso'),
+                        ('Miligramo', 'mg', 'Peso', 'Unidad de peso'),
+                        ('Onza', 'oz', 'Peso', 'Unidad de peso'),
+                        ('Libra', 'Lb', 'Peso', 'Unidad de peso'),
+                        ('Litro', 'Lts', 'Volumen', 'Unidad de volumen'),
+                        ('Mililitro', 'mL', 'Volumen', 'Unidad de volumen'),
+                        ('Taza', 'cup', 'Volumen', 'Unidad de volumen (aproximadamente 240 mL)'),
+                        ('Cucharada', 'tbsp', 'Volumen', 'Unidad de volumen (aproximadamente 15 mL)'),
+                        ('Cucharadita', 'tsp', 'Volumen', 'Unidad de volumen (aproximadamente 5 mL)'),
+                        ('Pieza', 'pz', 'Cantidad', 'Unidad individual'),
+                        ('Docena', 'doc', 'Cantidad', 'Conjunto de 12 piezas'),
+                        ('Piezas', 'pcs', 'Cantidad', 'Múltiples unidades individuales'),
+                        ('Rebanada', 'rbd', 'Cantidad', 'Porción de algo cortado'),
+                        ('Pizca', 'pz', 'Volumen', 'Pequeña cantidad de condimento');
+
+                        INSERT INTO Insumos (Nombre, StockActual, id_unidad, Unidad, StockMinimo, FechaEntrada, Costo) VALUES
+                        ('Aceite vegetal', 0, 7, 'mililitros', 0, '', 0.03),
+                        ('Bistek de res', 0, 2, 'gramos', 0, '', 0.65),
+                        ('Bolillo', 0, 11, 'pieza', 0, '', 2.00),
+                        ('Carne Brioche', 0, 2, 'gramos', 0, '', 0.45),
+                        ('Cebolla', 0, 2, 'gramos', 0, '', 0.02),
+                        ('Chile serrano', 0, 11, 'pieza', 0, '', 0.50),
+                        ('Cilantro', 0, 2, 'gramos', 0, '', 0.03),
+                        ('Jitomate', 0, 11, 'pieza', 0, '', 2.00),
+                        ('Lechuga Rabenta', 0, 2, 'gramos', 0, '', 0.05),
+                        ('Limón', 0, 11, 'pieza', 0, '', 0.80),
+                        ('Pan de Hamburguesa', 0, 14, 'rebanada', 0, '', 3.00),
+                        ('Pierna de cerdo', 0, 2, 'gramos', 0, '', 0.30),
+                        ('Pollo deshebrado', 0, 2, 'gramos', 0, '', 0.25),
+                        ('Queso Americano', 0, 14, 'rebanada', 0, '', 2.50),
+                        ('Sal', 0, 15, 'pizca', 0, '', 0.01),
+                        ('Tortilla tostada', 0, 11, 'pieza', 0, '', 1.50);
 
                         INSERT INTO usuario (nombre, rol, pin_acceso, permisos)
                         VALUES ('Dueño Karin', 'Admin', '1234', 'Pedidos,Cuentas,Inventario,Recetas,Reportes');
@@ -155,6 +182,7 @@ namespace RestaurantKarin
             }
 
             AsegurarTablasRecetas();
+            AsegurarTablaUnidades();
             AsegurarColumnaPermisos();
             AsegurarMesasIniciales();
         }
@@ -194,6 +222,72 @@ namespace RestaurantKarin
             }
         }
 
+        /// <summary>
+        /// Asegura que la tabla de unidades exista en la base de datos.
+        /// Para bases de datos existentes, agrega la tabla y sus datos iniciales.
+        /// </summary>
+        public static void AsegurarTablaUnidades()
+        {
+            string nombreArchivo = "karin_pos.db";
+            if (!File.Exists(nombreArchivo)) return;
+
+            using (var conexion = new SQLiteConnection($"Data Source={nombreArchivo};Version=3;"))
+            {
+                conexion.Open();
+                using (var pragma = new SQLiteCommand("PRAGMA foreign_keys = ON;", conexion))
+                    pragma.ExecuteNonQuery();
+
+                // Crear tabla si no existe
+                string sqlCreateTable = @"
+CREATE TABLE IF NOT EXISTS tabla_unidades (
+    id_unidad INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL UNIQUE,
+    abreviatura TEXT NOT NULL UNIQUE,
+    tipo TEXT NOT NULL,
+    descripcion TEXT
+);";
+                using (var cmd = new SQLiteCommand(sqlCreateTable, conexion))
+                    cmd.ExecuteNonQuery();
+
+                // Verificar si la tabla tiene datos
+                using (var cmd = new SQLiteCommand("SELECT COUNT(*) FROM tabla_unidades;", conexion))
+                {
+                    if (Convert.ToInt32((long)cmd.ExecuteScalar()!) == 0)
+                    {
+                        // Insertar unidades iniciales
+                        string sqlInsertUnidades = @"
+INSERT INTO tabla_unidades (nombre, abreviatura, tipo, descripcion) VALUES
+('Kilogramo', 'kg', 'Peso', 'Unidad de peso'),
+('Gramo', 'g', 'Peso', 'Unidad de peso'),
+('Miligramo', 'mg', 'Peso', 'Unidad de peso'),
+('Onza', 'oz', 'Peso', 'Unidad de peso'),
+('Libra', 'Lb', 'Peso', 'Unidad de peso'),
+('Litro', 'Lts', 'Volumen', 'Unidad de volumen'),
+('Mililitro', 'mL', 'Volumen', 'Unidad de volumen'),
+('Taza', 'cup', 'Volumen', 'Unidad de volumen (aproximadamente 240 mL)'),
+('Cucharada', 'tbsp', 'Volumen', 'Unidad de volumen (aproximadamente 15 mL)'),
+('Cucharadita', 'tsp', 'Volumen', 'Unidad de volumen (aproximadamente 5 mL)'),
+('Pieza', 'pz', 'Cantidad', 'Unidad individual'),
+('Docena', 'doc', 'Cantidad', 'Conjunto de 12 piezas'),
+('Piezas', 'pcs', 'Cantidad', 'Múltiples unidades individuales'),
+('Rebanada', 'rbd', 'Cantidad', 'Porción de algo cortado'),
+('Pizca', 'pz', 'Volumen', 'Pequeña cantidad de condimento');";
+                        using (var cmd2 = new SQLiteCommand(sqlInsertUnidades, conexion))
+                            cmd2.ExecuteNonQuery();
+                    }
+                }
+
+                // Agregar columna id_unidad a Insumos si no existe
+                try
+                {
+                    using (var cmd = new SQLiteCommand(
+                        "ALTER TABLE Insumos ADD COLUMN id_unidad INTEGER DEFAULT 2;", conexion))
+                        cmd.ExecuteNonQuery();
+                }
+                catch { /* columna ya existe, ignorar */ }
+            }
+        }
+
         public static void AsegurarTablasRecetas()
         {
             string nombreArchivo = "karin_pos.db";
@@ -206,6 +300,13 @@ namespace RestaurantKarin
                     pragma.ExecuteNonQuery();
 
                 string sql = @"
+CREATE TABLE IF NOT EXISTS tabla_unidades (
+    id_unidad INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL UNIQUE,
+    abreviatura TEXT NOT NULL UNIQUE,
+    tipo TEXT NOT NULL,
+    descripcion TEXT
+);
 CREATE TABLE IF NOT EXISTS receta (
     id_receta INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
@@ -226,10 +327,12 @@ CREATE TABLE IF NOT EXISTS Insumos (
     id_insumo INTEGER PRIMARY KEY AUTOINCREMENT,
     Nombre TEXT NOT NULL UNIQUE,
     StockActual REAL DEFAULT 0.00,
+    id_unidad INTEGER DEFAULT 2,
     Unidad TEXT DEFAULT 'gramos',
     StockMinimo REAL DEFAULT 0.00,
     FechaEntrada TEXT DEFAULT '',
-    Costo REAL DEFAULT 0.00
+    Costo REAL DEFAULT 0.00,
+    FOREIGN KEY (id_unidad) REFERENCES tabla_unidades(id_unidad)
 );";
                 using (var comando = new SQLiteCommand(sql, conexion))
                     comando.ExecuteNonQuery();
@@ -262,23 +365,23 @@ CREATE TABLE IF NOT EXISTS Insumos (
             if (Convert.ToInt32((long)c0.ExecuteScalar()!) > 0) return;
 
             const string insert = @"
-INSERT OR IGNORE INTO Insumos (Nombre, StockActual, Unidad, StockMinimo, FechaEntrada, Costo) VALUES
-('Aceite vegetal', 0, 'mililitros', 0, '', 0.03),
-('Bistek de res', 0, 'gramos', 0, '', 0.65),
-('Bolillo', 0, 'pieza', 0, '', 2.00),
-('Carne Brioche', 0, 'gramos', 0, '', 0.45),
-('Cebolla', 0, 'gramos', 0, '', 0.02),
-('Chile serrano', 0, 'pieza', 0, '', 0.50),
-('Cilantro', 0, 'gramos', 0, '', 0.03),
-('Jitomate', 0, 'pieza', 0, '', 2.00),
-('Lechuga Rabenta', 0, 'gramos', 0, '', 0.05),
-('Limón', 0, 'pieza', 0, '', 0.80),
-('Pan de Hamburguesa', 0, 'rebanada', 0, '', 3.00),
-('Pierna de cerdo', 0, 'gramos', 0, '', 0.30),
-('Pollo deshebrado', 0, 'gramos', 0, '', 0.25),
-('Queso Americano', 0, 'rebanada', 0, '', 2.50),
-('Sal', 0, 'pizca', 0, '', 0.01),
-('Tortilla tostada', 0, 'pieza', 0, '', 1.50);";
+INSERT OR IGNORE INTO Insumos (Nombre, StockActual, id_unidad, Unidad, StockMinimo, FechaEntrada, Costo) VALUES
+('Aceite vegetal', 0, 7, 'mililitros', 0, '', 0.03),
+('Bistek de res', 0, 2, 'gramos', 0, '', 0.65),
+('Bolillo', 0, 11, 'pieza', 0, '', 2.00),
+('Carne Brioche', 0, 2, 'gramos', 0, '', 0.45),
+('Cebolla', 0, 2, 'gramos', 0, '', 0.02),
+('Chile serrano', 0, 11, 'pieza', 0, '', 0.50),
+('Cilantro', 0, 2, 'gramos', 0, '', 0.03),
+('Jitomate', 0, 11, 'pieza', 0, '', 2.00),
+('Lechuga Rabenta', 0, 2, 'gramos', 0, '', 0.05),
+('Limón', 0, 11, 'pieza', 0, '', 0.80),
+('Pan de Hamburguesa', 0, 14, 'rebanada', 0, '', 3.00),
+('Pierna de cerdo', 0, 2, 'gramos', 0, '', 0.30),
+('Pollo deshebrado', 0, 2, 'gramos', 0, '', 0.25),
+('Queso Americano', 0, 14, 'rebanada', 0, '', 2.50),
+('Sal', 0, 15, 'pizca', 0, '', 0.01),
+('Tortilla tostada', 0, 11, 'pieza', 0, '', 1.50);";
             using var cmd = new SQLiteCommand(insert, con);
             cmd.ExecuteNonQuery();
         }
