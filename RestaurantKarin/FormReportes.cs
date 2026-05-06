@@ -364,6 +364,33 @@ namespace RestaurantKarin
             card.Controls.Add(new Label { Text = value.ToString(), Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = CTexto, AutoSize = true, Location = new Point(350, yBase + 24) });
         }
 
+        private void AddInventoryRow(Panel card, string name, double consumido, string unidad, double maxConsumo, int index)
+        {
+            int yBase = 36 + index * 52;
+            int barW  = 300;
+
+            var ico = new Panel { Location = new Point(12, yBase + 2), Size = new Size(22, 22), BackColor = CAzul };
+            RoundControl(ico, 11);
+            ico.Controls.Add(new Label { Text = "🍽", Font = new Font("Segoe UI Emoji", 8), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, BackColor = Color.Transparent });
+            card.Controls.Add(ico);
+
+            card.Controls.Add(new Label { Text = name, Font = new Font("Segoe UI", 9), ForeColor = CTexto, AutoSize = true, Location = new Point(40, yBase + 4) });
+
+            var barBg = new Panel { Location = new Point(40, yBase + 26), Size = new Size(barW, 12), BackColor = CAzulMedio };
+            RoundControl(barBg, 6);
+            card.Controls.Add(barBg);
+
+            int fill = maxConsumo > 0 ? Math.Max(1, (int)(barW * consumido / maxConsumo)) : 1;
+            var barFg = new Panel { Location = new Point(0, 0), Size = new Size(fill, 12), BackColor = CNaranja };
+            RoundControl(barFg, 6);
+            barBg.Controls.Add(barFg);
+
+            string lbl = consumido >= 10000 ? $"{consumido / 1000:F2}k {unidad}"
+                       : consumido >= 1      ? $"{consumido:F1} {unidad}"
+                       :                       $"{consumido:F3} {unidad}";
+            card.Controls.Add(new Label { Text = lbl, Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = CTexto, AutoSize = true, Location = new Point(350, yBase + 24) });
+        }
+
         private void AddEmployeeRow(Panel card, string name, string income, int pct, int index)
         {
             int yBase = 36 + index * 52;
@@ -876,63 +903,43 @@ namespace RestaurantKarin
         /// </summary>
         private void ProcesarReporteInventario(DataTable dtInventario)
         {
+            _cardInv.SuspendLayout();
+            _cardInv.Controls.Clear();
+
+            var hdr = new Panel { Location = new Point(0, 0), Size = new Size(_cardInv.Width, 30), BackColor = CHeaderCard };
+            hdr.Controls.Add(new Label { Text = "Consumo de Inventario", Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0), BackColor = Color.Transparent });
+            _cardInv.Controls.Add(hdr);
+
             if (dtInventario == null || dtInventario.Rows.Count == 0)
             {
-                _cardInv.SuspendLayout();
-                _cardInv.Controls.Clear();
-                var hdrVacio = new Panel { Location = new Point(0, 0), Size = new Size(_cardInv.Width, 30), BackColor = CHeaderCard };
-                hdrVacio.Controls.Add(new Label { Text = "Consumo de Inventario", Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0), BackColor = Color.Transparent });
-                _cardInv.Controls.Add(hdrVacio);
-                _cardInv.Controls.Add(new Label { Text = "Sin datos para este período", Font = new Font("Segoe UI", 9), ForeColor = CTexto, AutoSize = true, Location = new Point(14, 48) });
-                _lblInventarioConsumido.Text = "0% del Inventario Consumido";
+                _cardInv.Controls.Add(new Label { Text = "Sin consumo registrado en este período", Font = new Font("Segoe UI", 9), ForeColor = CTexto, AutoSize = true, Location = new Point(14, 48) });
+                _lblInventarioConsumido.Text = "0 insumos consumidos en el período";
                 _cardInv.Controls.Add(_lblInventarioConsumido);
                 _cardInv.ResumeLayout(false);
                 return;
             }
 
-            _cardInv.SuspendLayout();
-            _cardInv.Controls.Clear();
-
-            var hdr = new Panel
-            {
-                Location = new Point(0, 0),
-                Size = new Size(_cardInv.Width, 30),
-                BackColor = CHeaderCard
-            };
-            _cardInv.Controls.Add(hdr);
-            hdr.Controls.Add(new Label
-            {
-                Text = "Consumo de Inventario",
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.White,
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(12, 0, 0, 0),
-                BackColor = Color.Transparent
-            });
-
+            // Calcular máximo de consumo para proporcionar las barras
+            double maxConsumo = 1.0;
             decimal costoTotal = 0;
-            decimal stockTotal = 0;
-            int maxInsumos = Math.Min(4, dtInventario.Rows.Count);
-
             foreach (DataRow row in dtInventario.Rows)
             {
-                decimal stockActual = row["StockActual"] != DBNull.Value ? Convert.ToDecimal(row["StockActual"]) : 0;
+                double c = row["Consumido"] != DBNull.Value ? Convert.ToDouble(row["Consumido"]) : 0;
+                if (c > maxConsumo) maxConsumo = c;
                 costoTotal += row["CostoTotal"] != DBNull.Value ? Convert.ToDecimal(row["CostoTotal"]) : 0;
-                stockTotal += stockActual;
             }
 
+            int maxInsumos = Math.Min(4, dtInventario.Rows.Count);
             for (int i = 0; i < maxInsumos; i++)
             {
-                DataRow row = dtInventario.Rows[i];
-                string nombre = row["Insumo"].ToString();
-                int stock = Convert.ToInt32(row["StockActual"] != DBNull.Value ? row["StockActual"] : 0);
-                int maxStock = stock > 0 ? stock : 100;
-                AddProductRow(_cardInv, nombre, stock, maxStock, i);
+                DataRow row    = dtInventario.Rows[i];
+                string  nombre = row["Insumo"].ToString() ?? "";
+                double  cons   = row["Consumido"] != DBNull.Value ? Convert.ToDouble(row["Consumido"]) : 0;
+                string  unidad = row["Unidad"].ToString() ?? "";
+                AddInventoryRow(_cardInv, nombre, cons, unidad, maxConsumo, i);
             }
 
-            int porcentajeConsumido = stockTotal > 0 ? Math.Min(100, (int)((costoTotal / (stockTotal * 0.5m)) * 100)) : 0;
-            _lblInventarioConsumido.Text = $"{porcentajeConsumido}% del Inventario Consumido";
+            _lblInventarioConsumido.Text = $"{dtInventario.Rows.Count} insumos consumidos — costo estimado: ${costoTotal:F2}";
             _cardInv.Controls.Add(_lblInventarioConsumido);
 
             _cardInv.ResumeLayout(false);

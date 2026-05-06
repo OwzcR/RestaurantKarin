@@ -399,7 +399,7 @@ namespace RestaurantKarin
                     cmd.Parameters.AddWithValue("@notas",  d.Nombre.Contains('(') ? d.Nombre : "");
                     cmd.ExecuteNonQuery();
 
-                    DescontarInventario(nombreBase, d.Cantidad, con, tran);
+                    DescontarInventario(nombreBase, d.Cantidad, _idCuenta, con, tran);
                 }
 
                 decimal nuevoSubtotal;
@@ -431,9 +431,9 @@ namespace RestaurantKarin
             }
         }
 
-        // Descuenta los insumos de inventario según las líneas de la receta.
+        // Descuenta los insumos de inventario según las líneas de la receta y registra el movimiento.
         // porciones: cuántas porciones se vendieron en este ítem del carrito.
-        private static void DescontarInventario(string nombreReceta, int porciones,
+        private static void DescontarInventario(string nombreReceta, int porciones, int idCuenta,
                                                 SQLiteConnection con, SQLiteTransaction tran)
         {
             // Obtener id_receta y porciones_receta
@@ -490,13 +490,25 @@ namespace RestaurantKarin
                 }
 
                 // Descontar del stock (mínimo 0)
-                using var upd = new SQLiteCommand(@"
+                using (var upd = new SQLiteCommand(@"
                     UPDATE Insumos
                     SET StockActual = MAX(0, StockActual - @qty)
-                    WHERE Nombre = @n COLLATE NOCASE;", con, tran);
-                upd.Parameters.AddWithValue("@qty", totalConsumo);
-                upd.Parameters.AddWithValue("@n",   insumo);
-                upd.ExecuteNonQuery();
+                    WHERE Nombre = @n COLLATE NOCASE;", con, tran))
+                {
+                    upd.Parameters.AddWithValue("@qty", totalConsumo);
+                    upd.Parameters.AddWithValue("@n",   insumo);
+                    upd.ExecuteNonQuery();
+                }
+
+                // Registrar movimiento para reportes
+                using var mov = new SQLiteCommand(@"
+                    INSERT INTO inventario_movimientos (id_cuenta, insumo, cantidad, unidad, fecha)
+                    VALUES (@cuenta, @insumo, @qty, @unidad, CURRENT_TIMESTAMP);", con, tran);
+                mov.Parameters.AddWithValue("@cuenta", idCuenta);
+                mov.Parameters.AddWithValue("@insumo", insumo);
+                mov.Parameters.AddWithValue("@qty",    totalConsumo);
+                mov.Parameters.AddWithValue("@unidad", unidadInsumo);
+                mov.ExecuteNonQuery();
             }
         }
 
