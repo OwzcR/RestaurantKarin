@@ -45,6 +45,7 @@ namespace RestaurantKarin
             public int      NumeroMesa    { get; init; }
             public int      IdMesa        { get; init; }
             public DateTime FechaApertura { get; init; }
+            public DateTime? FechaCierre  { get; init; }
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -169,8 +170,12 @@ namespace RestaurantKarin
                 using var con = new SQLiteConnection(Conn);
                 con.Open();
                 using var cmd = new SQLiteCommand(@"
-                    SELECT c.id_cuenta, c.id_mesa, c.fecha_apertura, c.estado_cuenta,
-                           COALESCE(c.subtotal, 0) AS monto,
+                    SELECT c.id_cuenta, c.id_mesa, c.fecha_apertura, c.fecha_cierre, c.estado_cuenta,
+                           COALESCE(c.subtotal, 0) AS subtotal_monto,
+                           CASE WHEN c.estado_cuenta != 'Abierta' AND COALESCE(c.total, 0) > 0
+                                THEN c.total
+                                ELSE COALESCE(c.subtotal, 0)
+                           END AS monto,
                            COALESCE(m.numero_mesa, 0) AS numero_mesa
                     FROM   cuenta c
                     LEFT JOIN mesa m ON m.id_mesa = c.id_mesa
@@ -183,6 +188,10 @@ namespace RestaurantKarin
                         ? DateTime.SpecifyKind(Convert.ToDateTime(r["fecha_apertura"]),
                                                DateTimeKind.Utc).ToLocalTime()
                         : DateTime.Now;
+                    var fechaCierre = r["fecha_cierre"] != DBNull.Value
+                        ? DateTime.SpecifyKind(Convert.ToDateTime(r["fecha_cierre"]),
+                                               DateTimeKind.Utc).ToLocalTime()
+                        : (DateTime?)null;
                     int id = Convert.ToInt32(r["id_cuenta"]);
                     _cuentas.Add(new CuentaItem
                     {
@@ -193,7 +202,8 @@ namespace RestaurantKarin
                         Abierta       = estadoRaw == "Abierta",
                         NumeroMesa    = Convert.ToInt32(r["numero_mesa"]),
                         IdMesa        = r["id_mesa"] != DBNull.Value ? Convert.ToInt32(r["id_mesa"]) : 0,
-                        FechaApertura = fecha
+                        FechaApertura = fecha,
+                        FechaCierre   = fechaCierre
                     });
                 }
             }
@@ -297,7 +307,9 @@ namespace RestaurantKarin
                     using var dlg = new FormCerrarPedido(0, c.Total, c.NumeroMesa, c.Folio);
                     if (dlg.ShowDialog(FindForm()) == DialogResult.OK && dlg.Confirmado)
                     {
-                        CuentaRepository.CerrarCuentaPorId(c.Id);
+                        decimal propina = dlg.PropinaConfirmada;
+                        decimal total   = c.Total + propina;
+                        CuentaRepository.CerrarCuentaConTotales(c.Id, c.Total, propina, total);
                         CargarCuentas();
                     }
                 };
@@ -330,7 +342,8 @@ namespace RestaurantKarin
                 IdCuenta    = c.Id,
                 HoraLlegada = c.FechaApertura,
                 Activa      = c.Abierta,
-                Nombre      = c.NumeroMesa > 0 ? $"MESA : {c.NumeroMesa}" : "—"
+                Nombre      = c.NumeroMesa > 0 ? $"MESA : {c.NumeroMesa}" : "—",
+                FechaCierre = c.FechaCierre
             };
             var mainForm = FindForm();
             if (mainForm == null) return;

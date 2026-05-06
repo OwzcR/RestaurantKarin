@@ -47,12 +47,18 @@ namespace RestaurantKarin
         // ── Data ──────────────────────────────────────────────────────────────
         private readonly MesaModel  _mesa;
         private List<DetalleItem>   _items = new();
+        private bool                _isClosed = false;
 
         // ── Live controls ─────────────────────────────────────────────────────
         private Panel _tableBody   = null!;
         private Label _lblSubtotal = null!;
         private Label _lblPropina  = null!;
         private Label _lblTotal    = null!;
+
+        // ── Saved totals for closed accounts ─────────────────────────────────
+        private decimal _savedSubtotal = -1;
+        private decimal _savedPropina  =  0;
+        private decimal _savedTotal    = -1;
 
         private sealed class DetalleItem
         {
@@ -125,13 +131,28 @@ namespace RestaurantKarin
             ApplyRounded(infoCard, 10);
             infoCard.MouseDown += Drag;
 
-            TimeSpan elapsed  = DateTime.Now - _mesa.HoraLlegada;
+            // Determine if account is closed
+            _isClosed = _mesa.FechaCierre.HasValue && !_mesa.Activa;
+            
+            TimeSpan elapsed;
+            if (_isClosed)
+            {
+                // Calculate time from opening to closing
+                elapsed = _mesa.FechaCierre.Value - _mesa.HoraLlegada;
+            }
+            else
+            {
+                // Calculate time from opening to now
+                elapsed = DateTime.Now - _mesa.HoraLlegada;
+            }
+            
             string   elapsedS = elapsed.TotalHours >= 1
                                     ? $"{(int)elapsed.TotalHours}h {elapsed.Minutes}m"
                                     : $"{elapsed.Minutes}m";
+            string   estado   = _isClosed ? "Pagada" : "Ocupada";
             string   mesero   = string.IsNullOrWhiteSpace(Sesion.Nombre) ? "—" : Sesion.Nombre;
 
-            AddInfoColumn(infoCard, "Estado:",              "Ocupada", 14);
+            AddInfoColumn(infoCard, "Estado:",              estado,   14);
             AddInfoColumn(infoCard, "Mesero:",              mesero,    230);
             AddInfoColumn(infoCard, "Tiempo transcurrido:", elapsedS,  450);
             Controls.Add(infoCard);
@@ -186,15 +207,25 @@ namespace RestaurantKarin
             int lblX = Width - mx - 330;
             int valX = Width - mx - 68;
 
-            AddTotalRow("SUBTOTAL:",               lblX, valX, totY,       out _lblSubtotal);
-            AddTotalRow("PROPINA SUGERIDA (10%):",  lblX, valX, totY + 28, out _lblPropina);
-            AddTotalRow("TOTAL A PAGAR:",           lblX, valX, totY + 56, out _lblTotal);
+            string propinaLabel = _isClosed ? "PROPINA:" : "PROPINA SUGERIDA (10%):";
+            AddTotalRow("SUBTOTAL:",    lblX, valX, totY,       out _lblSubtotal);
+            AddTotalRow(propinaLabel,   lblX, valX, totY + 28,  out _lblPropina);
+            AddTotalRow("TOTAL:",       lblX, valX, totY + 56,  out _lblTotal);
 
             // ── "+ Agregar Pedido" button ─────────────────────────────────────
             var btnAgrPed = BuildAgregarBtn();
             btnAgrPed.Location = new Point(mx, totY + 88);
+            
+            if (_isClosed)
+            {
+                btnAgrPed.Enabled = false;
+                btnAgrPed.BackColor = Color.FromArgb(200, 200, 200);
+                btnAgrPed.Cursor = Cursors.No;
+            }
+            
             void DoAgregar(object? s, EventArgs e)
             {
+                if (_isClosed) return;
                 using var frm = new FormAgregarPedido(_mesa.Id, _mesa.IdCuenta);
                 frm.ShowDialog(this);
                 CargarDatos();
@@ -234,10 +265,26 @@ namespace RestaurantKarin
             btnCancelar.Click += (_, _) => Close();
             btnImprimir.Click += (_, _) => { using var f = new FormImpresion(); f.ShowDialog(this); };
             btnCerrar.Click   += OnCerrarCuenta;
+            
+            // Disable close button if already closed
+            if (_isClosed)
+            {
+                btnCerrar.Enabled = false;
+                btnCerrar.BackColor = Color.FromArgb(150, 150, 150);
+                btnCerrar.Cursor = Cursors.No;
+            }
 
             // "+ Guardar Cambios" button (navy, right side, split-style)
             var btnGuardar = BuildGuardarBtn();
             btnGuardar.Location = new Point(Width - mx - btnGuardar.Width, 14);
+            
+            // Disable save button if already closed
+            if (_isClosed)
+            {
+                btnGuardar.Enabled = false;
+                btnGuardar.BackColor = Color.FromArgb(100, 100, 100);
+                btnGuardar.Cursor = Cursors.No;
+            }
 
             btnBar.Controls.AddRange(new Control[] { btnCancelar, btnImprimir, btnCerrar, btnGuardar });
             Controls.Add(btnBar);
@@ -302,6 +349,7 @@ namespace RestaurantKarin
             {
                 using var con = new SQLiteConnection(Conn);
                 con.Open();
+
                 using var cmd = new SQLiteCommand(@"
                     SELECT d.id_detalle, p.nombre, d.cantidad,
                            d.precio_unitario, d.subtotal, d.notas
@@ -321,6 +369,21 @@ namespace RestaurantKarin
                         Subtotal   = Convert.ToDecimal(r["subtotal"]),
                         Notas      = r["notas"]?.ToString() ?? ""
                     });
+
+                if (_isClosed)
+                {
+                    using var cmd2 = new SQLiteCommand(@"
+                        SELECT subtotal, cargo_servicio_extra, total
+                        FROM   cuenta WHERE id_cuenta = @id;", con);
+                    cmd2.Parameters.AddWithValue("@id", _mesa.IdCuenta);
+                    using var r2 = cmd2.ExecuteReader();
+                    if (r2.Read())
+                    {
+                        _savedSubtotal = Convert.ToDecimal(r2["subtotal"]);
+                        _savedPropina  = Convert.ToDecimal(r2["cargo_servicio_extra"]);
+                        _savedTotal    = Convert.ToDecimal(r2["total"]);
+                    }
+                }
             }
             catch { }
             RenderTable();
@@ -379,7 +442,17 @@ namespace RestaurantKarin
             btnEdit.FlatAppearance.BorderSize        = 0;
             btnEdit.FlatAppearance.MouseOverBackColor = Color.FromArgb(210, 210, 210);
             ApplyRounded(btnEdit, 4);
-            btnEdit.Click += (_, _) => EditarItem(item);
+            btnEdit.Click += (_, _) => 
+            { 
+                if (!_isClosed) EditarItem(item);
+            };
+            
+            if (_isClosed)
+            {
+                btnEdit.Enabled = false;
+                btnEdit.BackColor = Color.FromArgb(200, 200, 200);
+                btnEdit.Cursor = Cursors.No;
+            }
 
             // Delete icon button
             var btnDel = new Button
@@ -396,7 +469,17 @@ namespace RestaurantKarin
             btnDel.FlatAppearance.BorderSize        = 0;
             btnDel.FlatAppearance.MouseOverBackColor = Color.FromArgb(255, 210, 210);
             ApplyRounded(btnDel, 4);
-            btnDel.Click += (_, _) => EliminarItem(item);
+            btnDel.Click += (_, _) => 
+            { 
+                if (!_isClosed) EliminarItem(item);
+            };
+            
+            if (_isClosed)
+            {
+                btnDel.Enabled = false;
+                btnDel.BackColor = Color.FromArgb(200, 200, 200);
+                btnDel.Cursor = Cursors.No;
+            }
 
             row.Controls.Add(btnEdit);
             row.Controls.Add(btnDel);
@@ -416,12 +499,21 @@ namespace RestaurantKarin
 
         private void UpdateTotals()
         {
-            decimal sub   = _items.Sum(i => i.Subtotal);
-            decimal prop  = sub * 0.10m;
-            decimal total = sub + prop;
-            _lblSubtotal.Text = $"${sub:0}";
-            _lblPropina.Text  = $"${prop:0}";
-            _lblTotal.Text    = $"${total:0}";
+            if (_isClosed && _savedTotal > 0)
+            {
+                _lblSubtotal.Text = $"${_savedSubtotal:0}";
+                _lblPropina.Text  = $"${_savedPropina:0}";
+                _lblTotal.Text    = $"${_savedTotal:0}";
+            }
+            else
+            {
+                decimal sub   = _items.Sum(i => i.Subtotal);
+                decimal prop  = sub * 0.10m;
+                decimal total = sub + prop;
+                _lblSubtotal.Text = $"${sub:0}";
+                _lblPropina.Text  = $"${prop:0}";
+                _lblTotal.Text    = $"${total:0}";
+            }
         }
 
         // ── Actions ───────────────────────────────────────────────────────────
@@ -595,7 +687,9 @@ namespace RestaurantKarin
             using var dlg = new FormCerrarPedido(_mesa.Id, sub, _mesa.NumeroMesa, folio);
             if (dlg.ShowDialog(overlay) == DialogResult.OK && dlg.Confirmado)
             {
-                CuentaRepository.CerrarCuenta(_mesa.Id);
+                decimal propina = dlg.PropinaConfirmada;
+                decimal total   = sub + propina;
+                CuentaRepository.CerrarCuentaConTotales(_mesa.IdCuenta, sub, propina, total);
                 overlay.Close();
                 DialogResult = DialogResult.OK;
                 Close();

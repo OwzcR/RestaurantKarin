@@ -69,6 +69,39 @@ namespace RestaurantKarin
             if (idMesa > 0) MesaRepository.MarcarLibre(idMesa);
         }
 
+        public static void CerrarCuentaConTotales(int idCuenta, decimal subtotal, decimal propina, decimal total)
+        {
+            using var con = new SQLiteConnection(Conn);
+            con.Open();
+
+            int idMesa = -1;
+            using (var cmd = new SQLiteCommand(
+                "SELECT id_mesa FROM cuenta WHERE id_cuenta = @id;", con))
+            {
+                cmd.Parameters.AddWithValue("@id", idCuenta);
+                var r = cmd.ExecuteScalar();
+                if (r != null && r != DBNull.Value) idMesa = Convert.ToInt32(r);
+            }
+
+            using (var cmd = new SQLiteCommand(@"
+                UPDATE cuenta
+                SET estado_cuenta        = 'Cerrada',
+                    fecha_cierre         = CURRENT_TIMESTAMP,
+                    subtotal             = @sub,
+                    cargo_servicio_extra = @propina,
+                    total                = @tot
+                WHERE id_cuenta = @id;", con))
+            {
+                cmd.Parameters.AddWithValue("@sub",     subtotal);
+                cmd.Parameters.AddWithValue("@propina", propina);
+                cmd.Parameters.AddWithValue("@tot",     total);
+                cmd.Parameters.AddWithValue("@id",      idCuenta);
+                cmd.ExecuteNonQuery();
+            }
+
+            if (idMesa > 0) MesaRepository.MarcarLibre(idMesa);
+        }
+
         public static void ActualizarTotales(int idCuenta, decimal subtotal, decimal total)
         {
             using var con = new SQLiteConnection(Conn);
