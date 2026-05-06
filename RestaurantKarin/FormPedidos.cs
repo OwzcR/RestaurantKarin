@@ -528,13 +528,17 @@ namespace RestaurantKarin
                 return;
             }
 
+            var mainForm = FindForm();
+            if (mainForm == null) return;
+            using var overlay = CreateOverlay(mainForm);
+            overlay.Show(mainForm);
             using var form = new FormAgregarPedido(m.Id, idCuenta);
-            if (form.ShowDialog(this) == DialogResult.OK)
+            if (form.ShowDialog(overlay) == DialogResult.OK)
             {
-                // Refresca la pantalla para mostrar el nuevo total
                 _mesas = MesaRepository.GetAll();
                 RefreshMesaCards();
             }
+            overlay.Close();
         }
 
         private void OnVerDetalles(MesaModel m)
