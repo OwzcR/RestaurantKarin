@@ -31,7 +31,7 @@ namespace RestaurantKarin
 
         private Panel _content;
         private Button _activeNav;
-        private Form _overlayForm;  // Usar un FORM en lugar de Panel
+        private Form _overlayForm;
 
         public FormConfiguracion()
         {
@@ -46,7 +46,6 @@ namespace RestaurantKarin
             {
                 if (_overlayForm != null) return;
 
-                // Buscar el formulario padre
                 Form padre = this.Owner;
                 if (padre == null)
                 {
@@ -62,25 +61,20 @@ namespace RestaurantKarin
 
                 if (padre == null) return;
 
-                // Crear un formulario overlay semitransparente
                 _overlayForm = new Form();
                 _overlayForm.FormBorderStyle = FormBorderStyle.None;
                 _overlayForm.ShowInTaskbar = false;
                 _overlayForm.StartPosition = FormStartPosition.Manual;
                 _overlayForm.BackColor = Color.FromArgb(13, 41, 78);
-                _overlayForm.Opacity = 0.65;  // 65% opaco - se ve lo que hay detrás
+                _overlayForm.Opacity = 0.65;
                 _overlayForm.Size = padre.Size;
                 _overlayForm.Location = padre.Location;
                 _overlayForm.Owner = padre;
 
-                // Mostrar el overlay DETRÁS de este formulario pero sobre el padre
                 _overlayForm.Show(padre);
-                _overlayForm.SendToBack();  // Enviar detrás
-
-                // Traer este formulario al frente
+                _overlayForm.SendToBack();
                 this.BringToFront();
 
-                // Sincronizar movimiento y tamaño
                 padre.LocationChanged += Padre_LocationChanged;
                 padre.Resize += Padre_Resized;
             }
@@ -207,6 +201,7 @@ namespace RestaurantKarin
             btnX.Click += (s, e) => this.Close();
             sb.Controls.Add(btnX);
 
+            // BARRA SUPERIOR - se puede arrastrar desde CUALQUIER parte
             Panel top = new Panel();
             top.Size = new Size(860, 58); top.Location = new Point(240, 0);
             top.BackColor = C_SURFACE; this.Controls.Add(top); top.BringToFront();
@@ -221,14 +216,32 @@ namespace RestaurantKarin
             top.Paint += (s, e) =>
                 e.Graphics.DrawLine(new Pen(C_BORDER), 0, 57, 860, 57);
 
+            // CÓDIGO PARA MOVER LA VENTANA - AHORA FUNCIONA EN TODA LA BARRA SUPERIOR
             bool drag = false; Point dp = Point.Empty;
+
             top.MouseDown += (s, e) => { drag = true; dp = e.Location; };
             top.MouseMove += (s, e) =>
             {
-                if (drag) this.Location = new Point(
-                    this.Location.X + e.X - dp.X, this.Location.Y + e.Y - dp.Y);
+                if (drag)
+                {
+                    this.Location = new Point(
+                        this.Location.X + e.X - dp.X,
+                        this.Location.Y + e.Y - dp.Y);
+                }
             };
             top.MouseUp += (s, e) => drag = false;
+
+            lTitle.MouseDown += (s, e) => { drag = true; dp = e.Location; };
+            lTitle.MouseMove += (s, e) =>
+            {
+                if (drag)
+                {
+                    this.Location = new Point(
+                        this.Location.X + e.X - dp.X,
+                        this.Location.Y + e.Y - dp.Y);
+                }
+            };
+            lTitle.MouseUp += (s, e) => drag = false;
 
             _content = new Panel();
             _content.Size = new Size(860, 682); _content.Location = new Point(240, 58);
@@ -313,11 +326,13 @@ namespace RestaurantKarin
                 catch (Exception ex) { Toast("Error: " + ex.Message, false); }
             };
 
-            Panel cE = Card(24, 526, 812, 142, page);
+            // Panel para la sección de permisos
+            Panel cE = Card(24, 526, 812, 168, page);  // Alto suficiente para checkboxes + botones
             CardTitle(cE, "Permisos del usuario seleccionado", 20, 16);
 
+            // Checkboxes de permisos
             FieldLbl("Pantallas habilitadas", cE, 20, 50);
-            var cksE = PermChecks(cE, 20, 68);
+            var cksE = PermChecks(cE, 20, 70);  // Checkboxes un poco más abajo
 
             lv.SelectedIndexChanged += (s, e) =>
             {
@@ -331,8 +346,9 @@ namespace RestaurantKarin
                 }
             };
 
-            Button btnPerm = BtnSecondary("Guardar permisos", cE, 534, 60, 162, 38);
-            Button btnDel = BtnDanger("Eliminar usuario", cE, 710, 60, 102, 38);
+            // Botones uno al lado del otro debajo de los checkboxes
+            Button btnPerm = BtnSecondary("Guardar permisos", cE, 20, 110, 180, 42);
+            Button btnDel = BtnDanger("Eliminar usuario", cE, 220, 110, 160, 42);
 
             btnPerm.Click += (s, e) =>
             {
