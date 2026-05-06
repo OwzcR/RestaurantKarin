@@ -28,7 +28,7 @@ namespace RestaurantKarin
             this.Text = "Nuevo Insumo";
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
-            this.Size = new Size(800, 580);
+            this.Size = new Size(810, 630);
             this.StartPosition = FormStartPosition.CenterParent;
             this.BackColor = Color.White;
 
@@ -42,12 +42,12 @@ namespace RestaurantKarin
             RedondearControl(pnlCuerpo, 15);
 
             // Creación de campos
-            txtNombre = CrearCampo(pnlCuerpo, "Nombre del insumo:", 20, 20, 450);
+            txtNombre = CrearCampo(pnlCuerpo, "Nombre del insumo:", 20, 20, 700);
 
-            // Calendario con diseño limpio
+            // Calendario
             dtpFecha = CrearCalendario(pnlCuerpo, "Última entrada:", 100, 20, 340);
 
-            // Campo ID ahora solo acepta dígitos
+            // Campo ID
             txtId = CrearCampo(pnlCuerpo, "ID del insumo:", 100, 380, 340);
             txtId.KeyPress += SoloNumeros_KeyPress;
 

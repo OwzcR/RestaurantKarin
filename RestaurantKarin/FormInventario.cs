@@ -9,21 +9,16 @@ namespace RestaurantKarin
 {
     public partial class FormInventario : UserControl
     {
-        // ── Paleta ────────────────────────────────────────────────────────────
-        private static readonly Color ColHeader  = Color.FromArgb(14,  77, 110);
-        private static readonly Color ColBorde   = Color.FromArgb(0,  151, 167);
-        private static readonly Color ColRowBg   = Color.White;
-        private static readonly Color ColRowSel  = Color.FromArgb(185, 235, 242);
-        private static readonly Color ColBtnTeal = Color.FromArgb(0,  151, 167);
-        private static readonly Color ColBtnNavy = Color.FromArgb(23,  91, 122);
+        private static readonly Color ColHeader = Color.FromArgb(14, 77, 110);
+        private static readonly Color ColBorde = Color.FromArgb(0, 151, 167);
+        private static readonly Color ColRowBg = Color.White;
+        private static readonly Color ColRowSel = Color.FromArgb(185, 235, 242);
+        private static readonly Color ColBtnTeal = Color.FromArgb(0, 151, 167);
+        private static readonly Color ColBtnNavy = Color.FromArgb(23, 91, 122);
+        private static readonly Color ColSearchBg = Color.FromArgb(240, 244, 247);
 
-        private static readonly Font FontHdr  = new Font("Segoe UI", 10, FontStyle.Bold);
-        private static readonly Font FontName = new Font("Segoe UI", 10, FontStyle.Bold);
-        private static readonly Font FontData = new Font("Segoe UI", 10);
-
-        private ListViewEx _lista       = null!;
-        private TextBox    _txtBusqueda = null!;
-        private Button     _btnSel      = null!;
+        private ListViewEx _lista;
+        private TextBox _txtBusqueda;
 
         public FormInventario()
         {
@@ -32,241 +27,152 @@ namespace RestaurantKarin
             CargarDatosTabla();
         }
 
-        // ══════════════════════════════════════════════════════════════════════
-        //  Construcción de la UI
-        // ══════════════════════════════════════════════════════════════════════
         private void SetupUI()
         {
-            BackColor = Color.Transparent;
-            Dock      = DockStyle.Fill;
-            Padding   = new Padding(28, 18, 28, 18);   // muestra el fondo alrededor
+            this.BackColor = Color.Transparent;
+            this.Dock = DockStyle.Fill;
+            this.Padding = new Padding(15, 10, 15, 10);
 
-            // ── Barra de búsqueda ─────────────────────────────────────────────
-            var pnlTop = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Color.Transparent };
-
-            var pill = new Panel { BackColor = Color.FromArgb(228, 235, 240), Height = 36, Location = new Point(0, 6) };
+            // --- 1. BUSCADOR (TOP) ---
+            Panel pnlTop = new Panel { Dock = DockStyle.Top, Height = 60 };
+            Panel pill = new Panel { BackColor = ColSearchBg, Width = 380, Height = 36, Location = new Point(0, 10) };
             ApplyRound(pill, 18);
-
-            pnlTop.Resize += (_, _) =>
-            {
-                pill.Width = pnlTop.Width;
-                ApplyRound(pill, 18);
-                if (_btnSel      != null) _btnSel.Location      = new Point(pill.Width - 126, 3);
-                if (_txtBusqueda != null) _txtBusqueda.Width    = Math.Max(60, pill.Width - 126 - 218 - 6);
-            };
-
-            new Label
-            {
-                Text = "🔍", Font = new Font("Segoe UI", 10),
-                AutoSize = false, Size = new Size(32, 36), Location = new Point(6, 0),
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent, ForeColor = Color.FromArgb(50, 50, 50),
-                Parent = pill
-            };
-            new Label
-            {
-                Text = "BUSCAR ID PRODUCTO :",
-                Font = new Font("Segoe UI", 8, FontStyle.Bold),
-                AutoSize = false, Size = new Size(178, 36), Location = new Point(38, 0),
-                TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = Color.Transparent, ForeColor = Color.FromArgb(30, 30, 30),
-                Parent = pill
-            };
 
             _txtBusqueda = new TextBox
             {
-                Font = new Font("Segoe UI", 9), BorderStyle = BorderStyle.None,
-                BackColor = Color.FromArgb(228, 235, 240), ForeColor = Color.FromArgb(25, 25, 25),
-                Size = new Size(150, 22), Location = new Point(218, 8), Parent = pill
+                Font = new Font("Segoe UI", 9),
+                BorderStyle = BorderStyle.None,
+                BackColor = ColSearchBg,
+                Location = new Point(15, 10),
+                Width = 250,
+                Text = "Escribe aquí...",
+                ForeColor = Color.Gray
             };
-            _txtBusqueda.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) BuscarPorId(_txtBusqueda.Text.Trim()); };
 
-            _btnSel = new Button
+            _txtBusqueda.Enter += (s, e) => { if (_txtBusqueda.Text == "Escribe aquí...") { _txtBusqueda.Text = ""; _txtBusqueda.ForeColor = Color.Black; } };
+            _txtBusqueda.Leave += (s, e) => { if (string.IsNullOrWhiteSpace(_txtBusqueda.Text)) { _txtBusqueda.Text = "Escribe aquí..."; _txtBusqueda.ForeColor = Color.Gray; } };
+
+            Button btnBusca = new Button
             {
-                Text = "SELECCIONAR",
+                Text = "BUSCAR",
+                BackColor = ColHeader,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Dock = DockStyle.Right,
+                Width = 90,
                 Font = new Font("Segoe UI", 8, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = ColHeader,
-                FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand,
-                Size = new Size(118, 30), Location = new Point(380, 3), Parent = pill
+                Cursor = Cursors.Hand
             };
-            _btnSel.FlatAppearance.BorderSize = 0;
-            ApplyRoundOnResize(_btnSel, 8);
-            _btnSel.Click += (_, _) => BuscarPorId(_txtBusqueda.Text.Trim());
+            btnBusca.FlatAppearance.BorderSize = 0;
+            btnBusca.Click += (s, e) => BuscarPorTexto(_txtBusqueda.Text);
 
+            pill.Controls.Add(_txtBusqueda);
+            pill.Controls.Add(btnBusca);
             pnlTop.Controls.Add(pill);
 
-            // ── Botones de acción ─────────────────────────────────────────────
-            var pnlBotones = new TableLayoutPanel
+            // --- 2. CONTENEDOR MAESTRO ---
+            TableLayoutPanel mainLayout = new TableLayoutPanel
             {
-                Dock = DockStyle.Bottom, Height = 60,
-                ColumnCount = 4, Margin = Padding.Empty,
-                Padding = new Padding(0, 2, 0, 2),
+                Dock = DockStyle.Fill,
+                RowCount = 2,
                 BackColor = Color.Transparent
             };
-            for (int i = 0; i < 4; i++)
-                pnlBotones.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 82f));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 18f));
 
-            var bAgregar  = ActionPanel("➕", "AGREGAR\nINSUMO",     ColBtnTeal);
-            var bEditar   = ActionPanel("✏",  "EDITAR\nINSUMO",      ColBtnNavy);
-            var bEntrada  = ActionPanel("🗄",  "ENTRADA\nDE INSUMOS", ColBtnTeal);
-            var bEliminar = ActionPanel("🗑",  "ELIMINAR\nINSUMO",    ColBtnNavy);
-
-            bAgregar.Margin  = new Padding(0, 0, 3, 0);
-            bEditar.Margin   = new Padding(3, 0, 3, 0);
-            bEntrada.Margin  = new Padding(3, 0, 3, 0);
-            bEliminar.Margin = new Padding(3, 0, 0, 0);
-
-            ApplyRoundOnResize(bAgregar,  10);
-            ApplyRoundOnResize(bEditar,   10);
-            ApplyRoundOnResize(bEntrada,  10);
-            ApplyRoundOnResize(bEliminar, 10);
-
-            Wire(bAgregar,  (_, _) => DoAgregar());
-            Wire(bEditar,   (_, _) => DoEditar());
-            Wire(bEntrada,  (_, _) => DoEntrada());
-            Wire(bEliminar, (_, _) => DoEliminar());
-
-            pnlBotones.Controls.Add(bAgregar,  0, 0);
-            pnlBotones.Controls.Add(bEditar,   1, 0);
-            pnlBotones.Controls.Add(bEntrada,  2, 0);
-            pnlBotones.Controls.Add(bEliminar, 3, 0);
-
-            // ── Tabla con esquinas redondeadas ────────────────────────────────
-            var pnlGapTop  = new Panel { Dock = DockStyle.Top,    Height = 8, BackColor = Color.Transparent };
-            var pnlGapBtns = new Panel { Dock = DockStyle.Bottom, Height = 8, BackColor = Color.Transparent };
-            var pnlLista   = new Panel { Dock = DockStyle.Fill,              BackColor = Color.White };
-            pnlLista.Resize += (_, _) =>
-            {
-                if (pnlLista.Width > 20 && pnlLista.Height > 20)
-                    ApplyRound(pnlLista, 12);
-            };
-
+            // --- 3. LA TABLA ---
             _lista = new ListViewEx
             {
-                Dock = DockStyle.Fill, View = View.Details,
-                FullRowSelect = true, MultiSelect = false,
-                BorderStyle = BorderStyle.None, BackColor = Color.White,
-                Font = FontData, OwnerDraw = true,
-                HeaderStyle = ColumnHeaderStyle.Nonclickable
+                Dock = DockStyle.Fill,
+                View = View.Details,
+                FullRowSelect = true,
+                BorderStyle = BorderStyle.None,
+                OwnerDraw = true,
+                Font = new Font("Segoe UI", 9)
+            };
+            ConfigurarColumnas();
+            _lista.SizeChanged += (s, e) => AjustarAnchoColumnas();
+
+            Panel pnlTablaWrap = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Margin = new Padding(0, 0, 0, 15) };
+            ApplyRound(pnlTablaWrap, 12);
+            pnlTablaWrap.Controls.Add(_lista);
+
+            mainLayout.Controls.Add(pnlTablaWrap, 0, 0);
+
+            // --- 4. LOS BOTONES ACTUALIZADOS ---
+            TableLayoutPanel pnlBotones = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 4,
+                Margin = new Padding(0, 0, 0, 20)
+            };
+            for (int i = 0; i < 4; i++) pnlBotones.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+
+            pnlBotones.Controls.Add(CreateActionButton("➕", "Agregar Insumo", ColBtnTeal, (s, e) => DoAgregar()), 0, 0);
+            pnlBotones.Controls.Add(CreateActionButton("✏", "Editar Insumo", ColBtnNavy, (s, e) => DoEditar()), 1, 0);
+            pnlBotones.Controls.Add(CreateActionButton("🗄", "Entrada Insumos", ColBtnTeal, (s, e) => DoEntrada()), 2, 0);
+            pnlBotones.Controls.Add(CreateActionButton("🗑", "Eliminar Insumo", ColBtnNavy, (s, e) => DoEliminar()), 3, 0);
+
+            mainLayout.Controls.Add(pnlBotones, 0, 1);
+
+            this.Controls.Add(mainLayout);
+            this.Controls.Add(pnlTop);
+        }
+
+        private void ConfigurarColumnas()
+        {
+            _lista.Columns.Add("Insumo", 200);
+            _lista.Columns.Add("Stock Actual", 100);
+            _lista.Columns.Add("Unidad", 100);
+            _lista.Columns.Add("Stock Mínimo", 100);
+            _lista.Columns.Add("Ultima Entrada", 130);
+            _lista.Columns.Add("Costo Unitario", -2);
+
+            _lista.DrawColumnHeader += (s, e) => {
+                e.Graphics.FillRectangle(new SolidBrush(ColHeader), e.Bounds);
+                TextRenderer.DrawText(e.Graphics, e.Header.Text, new Font("Segoe UI", 9, FontStyle.Bold), e.Bounds, Color.White, TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
             };
 
-            _lista.SmallImageList = new ImageList { ImageSize = new Size(1, 38) };
-
-            _lista.Columns.Add("Insumo",        240);
-            _lista.Columns.Add("Stock Actual",  115);
-            _lista.Columns.Add("Unidad",         78);
-            _lista.Columns.Add("Stock Mínimo",  115);
-            _lista.Columns.Add("Ultima Entrada",145);
-            _lista.Columns.Add("Costo Unitario",130);
-
-            _lista.SizeChanged          += (_, _) => AjustarColumnas();
-            _lista.ItemSelectionChanged += (_, _) => _lista.Invalidate();
-
-            _lista.DrawColumnHeader += DrawHeader;
-            _lista.DrawItem         += DrawRow;
-            _lista.DrawSubItem      += DrawCell;
-
-            pnlLista.Controls.Add(_lista);
-
-            // Orden: Fill → Bottom (de abajo a arriba) → Top (de abajo a arriba)
-            Controls.Add(pnlLista);
-            Controls.Add(pnlBotones);
-            Controls.Add(pnlGapBtns);
-            Controls.Add(pnlGapTop);
-            Controls.Add(pnlTop);
+            _lista.DrawSubItem += (s, e) => {
+                Color bg = e.Item.Selected ? ColRowSel : ColRowBg;
+                e.Graphics.FillRectangle(new SolidBrush(bg), e.Bounds);
+                using (Pen p = new Pen(ColBorde)) e.Graphics.DrawLine(p, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+                TextRenderer.DrawText(e.Graphics, e.SubItem.Text, e.Item.Font, e.Bounds, Color.Black, TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter);
+            };
         }
 
-        // ══════════════════════════════════════════════════════════════════════
-        //  OwnerDraw handlers
-        // ══════════════════════════════════════════════════════════════════════
-        private static void DrawHeader(object? s, DrawListViewColumnHeaderEventArgs e)
+        private void AjustarAnchoColumnas()
         {
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            using var br = new SolidBrush(ColHeader);
-            e.Graphics.FillRectangle(br, e.Bounds);
-            using var sep = new Pen(Color.FromArgb(0, 171, 187), 1);
-            e.Graphics.DrawLine(sep, e.Bounds.Right - 1, e.Bounds.Top, e.Bounds.Right - 1, e.Bounds.Bottom);
-            using var bot = new Pen(ColBorde, 2);
-            e.Graphics.DrawLine(bot, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
-
-            var flags = e.ColumnIndex == 0
-                ? TextFormatFlags.VerticalCenter | TextFormatFlags.Left
-                : TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter;
-            var tr = e.ColumnIndex == 0
-                ? new Rectangle(e.Bounds.X + 12, e.Bounds.Y, e.Bounds.Width - 12, e.Bounds.Height)
-                : e.Bounds;
-            TextRenderer.DrawText(e.Graphics, e.Header.Text, FontHdr, tr, Color.White, flags);
+            if (_lista.Width <= 0) return;
+            int w = _lista.Width - 30;
+            _lista.Columns[0].Width = (int)(w * 0.30);
+            _lista.Columns[1].Width = (int)(w * 0.12);
+            _lista.Columns[2].Width = (int)(w * 0.12);
+            _lista.Columns[3].Width = (int)(w * 0.12);
+            _lista.Columns[4].Width = (int)(w * 0.17);
+            _lista.Columns[5].Width = -2;
         }
 
-        private static void DrawRow(object? s, DrawListViewItemEventArgs e)
+        private Panel CreateActionButton(string icon, string text, Color bg, EventHandler click)
         {
-            Color bg = e.Item.Selected ? ColRowSel : ColRowBg;
-            using var br = new SolidBrush(bg);
-            e.Graphics.FillRectangle(br, e.Bounds);
+            Panel p = new Panel { Dock = DockStyle.Fill, BackColor = bg, Margin = new Padding(5), Cursor = Cursors.Hand };
+            Label l = new Label
+            {
+                Text = icon + " " + text,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Dock = DockStyle.Fill
+            };
+            l.Click += click;
+            p.Click += click;
+            p.Controls.Add(l);
+            return p;
         }
 
-        private static void DrawCell(object? s, DrawListViewSubItemEventArgs e)
-        {
-            // Relleno de fondo de celda — necesario para que el hover no borre el renglón
-            Color bg = e.Item.Selected ? ColRowSel : ColRowBg;
-            using (var brBg = new SolidBrush(bg))
-                e.Graphics.FillRectangle(brBg, e.Bounds);
-
-            using (var hLine = new Pen(ColBorde, 1))
-                e.Graphics.DrawLine(hLine, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
-            using (var vLine = new Pen(ColBorde, 1))
-                e.Graphics.DrawLine(vLine, e.Bounds.Right - 1, e.Bounds.Top, e.Bounds.Right - 1, e.Bounds.Bottom);
-
-            var font  = e.ColumnIndex == 0 ? FontName : FontData;
-            var flags = e.ColumnIndex == 0
-                ? TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.WordBreak
-                : TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter;
-            var tr = new Rectangle(e.Bounds.X + 10, e.Bounds.Y + 2, e.Bounds.Width - 14, e.Bounds.Height - 4);
-            TextRenderer.DrawText(e.Graphics, e.SubItem.Text, font, tr, Color.FromArgb(25, 25, 25), flags);
-        }
-
-        // ══════════════════════════════════════════════════════════════════════
-        //  Acciones de botones
-        // ══════════════════════════════════════════════════════════════════════
-        private void DoAgregar()
-        {
-            using var frm = new FormAgregarInsumo { StartPosition = FormStartPosition.CenterParent };
-            if (frm.ShowDialog(FindForm()) == DialogResult.OK) CargarDatosTabla();
-        }
-
-        private void DoEditar()
-        {
-            if (_lista.SelectedItems.Count == 0) { MessageBox.Show("Selecciona un insumo primero."); return; }
-            var it = _lista.SelectedItems[0];
-            using var frm = new FormEditarInsumo { StartPosition = FormStartPosition.CenterParent };
-            frm.CargarDatosParaEdicion(
-                it.Tag!.ToString()!,
-                it.SubItems[0].Text, it.SubItems[1].Text, it.SubItems[2].Text,
-                it.SubItems[3].Text, it.SubItems[4].Text, it.SubItems[5].Text);
-            if (frm.ShowDialog(FindForm()) == DialogResult.OK) CargarDatosTabla();
-        }
-
-        private void DoEntrada()
-        {
-            if (_lista.SelectedItems.Count == 0) { MessageBox.Show("Selecciona un insumo."); return; }
-            var it = _lista.SelectedItems[0];
-            using var frm = new FormEntradaInsumos { StartPosition = FormStartPosition.CenterParent };
-            frm.CargarDatos(it.Tag!.ToString()!, it.SubItems[0].Text, it.SubItems[2].Text);
-            if (frm.ShowDialog(FindForm()) == DialogResult.OK) CargarDatosTabla();
-        }
-
-        private void DoEliminar()
-        {
-            if (_lista.SelectedItems.Count == 0) { MessageBox.Show("Selecciona un insumo."); return; }
-            EliminarInsumo(_lista.SelectedItems[0]);
-        }
-
-        // ══════════════════════════════════════════════════════════════════════
-        //  Datos
-        // ══════════════════════════════════════════════════════════════════════
+        // --- MÉTODOS DE DATOS Y VALIDACIONES ---
         public void CargarDatosTabla()
         {
-            if (_lista == null) return;
             _lista.Items.Clear();
             try
             {
@@ -274,200 +180,113 @@ namespace RestaurantKarin
                 using var conn = new SQLiteConnection(cs);
                 conn.Open();
                 using var cmd = new SQLiteCommand("SELECT * FROM Insumos ORDER BY Nombre", conn);
-                using var dr  = cmd.ExecuteReader();
+                using var dr = cmd.ExecuteReader();
                 while (dr.Read())
                 {
-                    var item = new ListViewItem(dr["Nombre"].ToString()) { Tag = dr["id_insumo"].ToString() };
-                    item.SubItems.Add(dr["StockActual"].ToString());
-                    item.SubItems.Add(dr["Unidad"].ToString());
-                    item.SubItems.Add(dr["StockMinimo"].ToString());
-                    item.SubItems.Add(dr["FechaEntrada"].ToString());
-                    item.SubItems.Add("$" + dr["Costo"].ToString());
-                    _lista.Items.Add(item);
+                    var it = new ListViewItem(dr["Nombre"].ToString()) { Tag = dr["id_insumo"].ToString() };
+                    it.SubItems.Add(dr["StockActual"].ToString());
+                    it.SubItems.Add(dr["Unidad"].ToString());
+                    it.SubItems.Add(dr["StockMinimo"].ToString());
+                    it.SubItems.Add(dr["FechaEntrada"].ToString());
+                    it.SubItems.Add("$" + dr["Costo"].ToString());
+                    _lista.Items.Add(it);
                 }
             }
             catch { }
-            AjustarColumnas();
+            AjustarAnchoColumnas();
         }
 
-        private void BuscarPorId(string texto)
+        private void BuscarPorTexto(string t)
         {
-            if (string.IsNullOrEmpty(texto)) { CargarDatosTabla(); return; }
+            if (string.IsNullOrWhiteSpace(t) || t == "Escribe aquí...") { CargarDatosTabla(); return; }
             _lista.Items.Clear();
             try
             {
                 string cs = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
                 using var conn = new SQLiteConnection(cs);
                 conn.Open();
-                using var cmd = new SQLiteCommand(
-                    "SELECT * FROM Insumos WHERE id_insumo = @id OR Nombre LIKE @n ORDER BY Nombre", conn);
-                cmd.Parameters.AddWithValue("@id", texto);
-                cmd.Parameters.AddWithValue("@n",  "%" + texto + "%");
+                using var cmd = new SQLiteCommand("SELECT * FROM Insumos WHERE Nombre LIKE @n OR id_insumo LIKE @n", conn);
+                cmd.Parameters.AddWithValue("@n", "%" + t + "%");
                 using var dr = cmd.ExecuteReader();
                 while (dr.Read())
                 {
-                    var item = new ListViewItem(dr["Nombre"].ToString()) { Tag = dr["id_insumo"].ToString() };
-                    item.SubItems.Add(dr["StockActual"].ToString());
-                    item.SubItems.Add(dr["Unidad"].ToString());
-                    item.SubItems.Add(dr["StockMinimo"].ToString());
-                    item.SubItems.Add(dr["FechaEntrada"].ToString());
-                    item.SubItems.Add("$" + dr["Costo"].ToString());
-                    _lista.Items.Add(item);
+                    var it = new ListViewItem(dr["Nombre"].ToString()) { Tag = dr["id_insumo"].ToString() };
+                    it.SubItems.Add(dr["StockActual"].ToString());
+                    it.SubItems.Add(dr["Unidad"].ToString());
+                    it.SubItems.Add(dr["StockMinimo"].ToString());
+                    it.SubItems.Add(dr["FechaEntrada"].ToString());
+                    it.SubItems.Add("$" + dr["Costo"].ToString());
+                    _lista.Items.Add(it);
                 }
             }
             catch { }
-            AjustarColumnas();
+            AjustarAnchoColumnas();
         }
 
-        private void EliminarInsumo(ListViewItem item)
+        private void DoAgregar() { using var f = new FormAgregarInsumo(); if (f.ShowDialog() == DialogResult.OK) CargarDatosTabla(); }
+
+        private void DoEditar()
         {
-            if (MessageBox.Show($"¿Eliminar '{item.SubItems[0].Text}'?", "Confirmar",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-            try
+            if (_lista.SelectedItems.Count == 0)
             {
-                string cs = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
-                using var con = new SQLiteConnection(cs);
-                con.Open();
-                using var cmd = new SQLiteCommand("DELETE FROM Insumos WHERE id_insumo = @id", con);
-                cmd.Parameters.AddWithValue("@id", item.Tag?.ToString() ?? "");
-                cmd.ExecuteNonQuery();
-                CargarDatosTabla();
+                MessageBox.Show("Por favor, selecciona un insumo de la lista para editar.", "Atención", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
-            catch (Exception ex) { MessageBox.Show(ex.Message); }
+            var it = _lista.SelectedItems[0];
+            using var f = new FormEditarInsumo();
+            f.CargarDatosParaEdicion(it.Tag.ToString(), it.SubItems[0].Text, it.SubItems[1].Text, it.SubItems[2].Text, it.SubItems[3].Text, it.SubItems[4].Text, it.SubItems[5].Text.Replace("$", ""));
+            if (f.ShowDialog() == DialogResult.OK) CargarDatosTabla();
         }
 
-        private void AjustarColumnas()
+        private void DoEntrada()
         {
-            if (_lista == null || _lista.Width <= 10) return;
-            int avail = _lista.Width - SystemInformation.VerticalScrollBarWidth - 2;
-            int fijo  = 115 + 78 + 115 + 145 + 130;
-            _lista.Columns[0].Width = Math.Max(140, avail - fijo);
-            _lista.Columns[1].Width = 115;
-            _lista.Columns[2].Width = 78;
-            _lista.Columns[3].Width = 115;
-            _lista.Columns[4].Width = 145;
-            _lista.Columns[5].Width = 130;
-        }
-
-        // ══════════════════════════════════════════════════════════════════════
-        //  Helpers visuales
-        // ══════════════════════════════════════════════════════════════════════
-        private static Panel ActionPanel(string icon, string text, Color bg)
-        {
-            var pnl = new Panel
+            if (_lista.SelectedItems.Count == 0)
             {
-                Dock = DockStyle.Fill, BackColor = bg,
-                Cursor = Cursors.Hand, Margin = new Padding(0)
+                MessageBox.Show("Por favor, selecciona un insumo para registrar una entrada.", "Atención", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            var it = _lista.SelectedItems[0];
+            using var f = new FormEntradaInsumos();
+            f.CargarDatos(it.Tag.ToString(), it.SubItems[0].Text, it.SubItems[2].Text);
+            if (f.ShowDialog() == DialogResult.OK) CargarDatosTabla();
+        }
+
+        private void DoEliminar()
+        {
+            if (_lista.SelectedItems.Count == 0)
+            {
+                MessageBox.Show("Por favor, selecciona el insumo que deseas eliminar.", "Atención", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            var it = _lista.SelectedItems[0];
+            if (MessageBox.Show($"¿Estás seguro de que deseas eliminar '{it.Text}'?", "Confirmar eliminación", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                try
+                {
+                    string cs = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
+                    using var conn = new SQLiteConnection(cs);
+                    conn.Open();
+                    using var cmd = new SQLiteCommand("DELETE FROM Insumos WHERE id_insumo = @id", conn);
+                    cmd.Parameters.AddWithValue("@id", it.Tag.ToString());
+                    cmd.ExecuteNonQuery();
+                    CargarDatosTabla();
+                }
+                catch { }
+            }
+        }
+
+        private void ApplyRound(Control c, int r)
+        {
+            c.Paint += (s, e) => {
+                GraphicsPath gp = new GraphicsPath();
+                gp.AddArc(0, 0, r * 2, r * 2, 180, 90);
+                gp.AddArc(c.Width - r * 2, 0, r * 2, r * 2, 270, 90);
+                gp.AddArc(c.Width - r * 2, c.Height - r * 2, r * 2, r * 2, 0, 90);
+                gp.AddArc(0, c.Height - r * 2, r * 2, r * 2, 90, 90);
+                c.Region = new Region(gp);
             };
-
-            var lblIco = new Label
-            {
-                Text = icon,
-                Font = new Font("Segoe UI Emoji", 15),
-                ForeColor = Color.White, BackColor = Color.Transparent,
-                AutoSize = false, Dock = DockStyle.Left, Width = 50,
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-
-            var lblTxt = new Label
-            {
-                Text = text,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.Transparent,
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(2, 0, 0, 0)
-            };
-
-            pnl.Controls.Add(lblTxt);
-            pnl.Controls.Add(lblIco);
-
-            Color hover = ControlPaint.Dark(bg, 0.10f);
-            Action<bool> setHover = on => pnl.BackColor = on ? hover : bg;
-            pnl.MouseEnter    += (_, _) => setHover(true);
-            pnl.MouseLeave    += (_, _) => setHover(false);
-            lblIco.MouseEnter += (_, _) => setHover(true);
-            lblIco.MouseLeave += (_, _) => setHover(false);
-            lblTxt.MouseEnter += (_, _) => setHover(true);
-            lblTxt.MouseLeave += (_, _) => setHover(false);
-
-            return pnl;
         }
 
-        private static void Wire(Panel pnl, EventHandler handler)
-        {
-            pnl.Click += handler;
-            foreach (Control child in pnl.Controls)
-                child.Click += handler;
-        }
-
-        private static void ApplyRound(Control c, int r)
-        {
-            if (c.Width <= 0 || c.Height <= 0) return;
-            c.Region = new Region(RoundPath(new Rectangle(0, 0, c.Width, c.Height), r));
-        }
-
-        private static void ApplyRoundOnResize(Control c, int r)
-        {
-            c.Resize += (_, _) => ApplyRound(c, r);
-            ApplyRound(c, r);
-        }
-
-        private static GraphicsPath RoundPath(Rectangle rc, int r)
-        {
-            int d  = r * 2;
-            var gp = new GraphicsPath();
-            gp.AddArc(rc.Left,      rc.Top,        d, d, 180, 90);
-            gp.AddArc(rc.Right - d, rc.Top,        d, d, 270, 90);
-            gp.AddArc(rc.Right - d, rc.Bottom - d, d, d, 0,   90);
-            gp.AddArc(rc.Left,      rc.Bottom - d, d, d, 90,  90);
-            gp.CloseFigure();
-            return gp;
-        }
-
-        // ListView con doble buffer nativo.
-        // En hover, Windows solo invalida la primera columna (item text), por lo que
-        // DrawSubItem no se dispara para las otras columnas y el sistema las borra.
-        // OnMouseMove fuerza una invalidación de ancho completo para cada fila,
-        // asegurando que DrawSubItem reciba las 6 columnas en el update region.
-        private class ListViewEx : ListView
-        {
-            private int _hotIndex = -1;
-
-            public ListViewEx()
-            {
-                SetStyle(ControlStyles.OptimizedDoubleBuffer |
-                         ControlStyles.AllPaintingInWmPaint, true);
-            }
-
-            protected override void WndProc(ref Message m)
-            {
-                if (m.Msg == 0x0014) { m.Result = IntPtr.Zero; return; } // WM_ERASEBKGND
-                base.WndProc(ref m);
-            }
-
-            protected override void OnMouseMove(MouseEventArgs e)
-            {
-                base.OnMouseMove(e);
-                int idx = HitTest(e.X, e.Y).Item?.Index ?? -1;
-                if (idx == _hotIndex) return;
-                RedrawRow(_hotIndex);
-                _hotIndex = idx;
-                RedrawRow(_hotIndex);
-            }
-
-            protected override void OnMouseLeave(EventArgs e)
-            {
-                base.OnMouseLeave(e);
-                RedrawRow(_hotIndex);
-                _hotIndex = -1;
-            }
-
-            private void RedrawRow(int idx)
-            {
-                if (idx < 0 || idx >= Items.Count) return;
-                var b = Items[idx].Bounds;
-                Invalidate(new Rectangle(0, b.Y, Width, b.Height));
-            }
-        }
+        private class ListViewEx : ListView { public ListViewEx() { DoubleBuffered = true; } }
     }
 }

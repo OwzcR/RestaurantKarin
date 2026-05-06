@@ -24,12 +24,12 @@ namespace RestaurantKarin
 
         private void SetupDiseno()
         {
-            this.Text            = "Editar Insumo";
+            this.Text = "Editar Insumo";
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
-            this.MaximizeBox     = false;
-            this.Size            = new Size(800, 580);
-            this.StartPosition   = FormStartPosition.CenterParent;
-            this.BackColor       = Color.White;
+            this.MaximizeBox = false;
+            this.Size = new Size(810, 630);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.BackColor = Color.White;
 
             Panel pnlHeader = new Panel { Dock = DockStyle.Top, Height = 50, BackColor = colorAzulBtn };
             Label lblTit = new Label { Text = "EDITAR INSUMO", Dock = DockStyle.Fill, ForeColor = Color.White, Font = new Font("Segoe UI", 14, FontStyle.Bold), TextAlign = ContentAlignment.MiddleCenter };
@@ -40,7 +40,7 @@ namespace RestaurantKarin
             this.Controls.Add(pnlCuerpo);
             RedondearControl(pnlCuerpo, 15);
 
-            txtNombre = CrearCampo(pnlCuerpo, "Nombre del insumo:", 20,  20, 450);
+            txtNombre = CrearCampo(pnlCuerpo, "Nombre del insumo:", 20, 20, 700);
             dtpFecha  = CrearCalendario(pnlCuerpo, "Última entrada:", 100, 20, 340);
             txtMinimo = CrearCampo(pnlCuerpo, "Stock Mínimo:",   180,  20, 340);
             txtMinimo.KeyPress += SoloNumeros_KeyPress;
