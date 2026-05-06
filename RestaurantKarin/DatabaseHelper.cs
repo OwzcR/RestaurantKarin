@@ -412,16 +412,15 @@ INSERT OR IGNORE INTO Insumos (Nombre, StockActual, id_unidad, Unidad, StockMini
                 {
                     con.Open();
                     string sql = @"
-                        SELECT 
-                            COALESCE(DATE(c.fecha_apertura), @inicio) as Fecha,
+                        SELECT
+                            DATE(c.fecha_cierre) as Fecha,
                             COUNT(DISTINCT c.id_cuenta) as CantidadOrdenes,
-                            ROUND(COALESCE(SUM(CASE WHEN c.estado_cuenta='Cerrada' THEN c.total ELSE 0 END), 0), 2) as VentasCompletadas,
-                            ROUND(COALESCE(SUM(CASE WHEN c.estado_cuenta='Abierta' THEN c.total ELSE 0 END), 0), 2) as VentasPendientes,
                             ROUND(COALESCE(SUM(c.total), 0), 2) as VentasTotal
                         FROM cuenta c
-                        WHERE DATE(c.fecha_apertura) BETWEEN @inicio AND @fin
-                        GROUP BY DATE(c.fecha_apertura)
-                        ORDER BY c.fecha_apertura DESC";
+                        WHERE DATE(c.fecha_cierre) BETWEEN @inicio AND @fin
+                          AND c.estado_cuenta = 'Cerrada'
+                        GROUP BY DATE(c.fecha_cierre)
+                        ORDER BY DATE(c.fecha_cierre) DESC";
 
                     using (var cmd = new SQLiteCommand(sql, con))
                     {
