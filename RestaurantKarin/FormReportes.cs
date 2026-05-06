@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Reflection;
 using System.Windows.Forms;
+using ClosedXML.Excel;
 
 namespace RestaurantKarin
 {
@@ -21,12 +22,12 @@ namespace RestaurantKarin
 
         // Datos del gráfico
         private readonly string[] _dias = { "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom" };
-        private readonly double[] _ventas = { 400, 500, 350, 450, 650, 600, 550 };
+        private double[] _ventasDiarias = new double[7];
 
-        // ── Controles de filtro (referencias globales para validación) ──────
-        private DateTimePicker _dtpInicio;
-        private DateTimePicker _dtpFin;
-        private ErrorProvider _errorProvider;
+        // ── Selección de semana ────────────────────────────────────────────
+        private DateTime _semanaInicio;
+        private DateTime _semanaFin;
+        private Label    _lblSemana = null!;
 
         // ── Controles de reportes (referencias para actualización) ─────────
         private Label _lblTotalVentas;
@@ -37,18 +38,38 @@ namespace RestaurantKarin
         private Panel _cardEmp;
         private Label _lblInventarioConsumido;
 
+        // ── DataTables para exportación ────────────────────────────────────
+        private DataTable? _dtVentas;
+        private DataTable? _dtProductos;
+        private DataTable? _dtEmpleados;
+        private DataTable? _dtInventario;
+
         public FormReportes()
         {
             InitializeComponent();
-            this.DoubleBuffered = true;
-            _errorProvider = new ErrorProvider();
+            DoubleBuffered = true;
+            _semanaInicio  = LunesDeEstaSemana(DateTime.Today);
+            _semanaFin     = _semanaInicio.AddDays(6);
             BuildUI();
+            HandleCreated += (_, _) => CargarReportes();
         }
 
         private static void SetDoubleBuffered(Control c) =>
             typeof(Control).InvokeMember("DoubleBuffered",
                 BindingFlags.SetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
                 null, c, new object[] { true });
+
+        private static DateTime LunesDeEstaSemana(DateTime fecha)
+        {
+            int diff = ((int)fecha.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+            return fecha.AddDays(-diff).Date;
+        }
+
+        private void ActualizarLblSemana()
+        {
+            if (_lblSemana != null)
+                _lblSemana.Text = $"{_semanaInicio:dd MMM} — {_semanaFin:dd MMM yyyy}";
+        }
 
         private void BuildUI()
         {
@@ -126,37 +147,46 @@ namespace RestaurantKarin
             RoundControl(lblPeriodo, 16);
             pnlFiltros.Controls.Add(lblPeriodo);
 
-            var dtpInicio = new DateTimePicker
+            var btnPrev = MakeButton("◄", CAzul, 168, 10, 32, 32);
+            btnPrev.Click += (_, _) =>
             {
-                Format = DateTimePickerFormat.Short,
-                Value = new DateTime(2026, 2, 7),
-                Location = new Point(168, 10),
-                Size = new Size(115, 32),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                CalendarForeColor = CTexto,
-                CalendarMonthBackground = Color.White
+                _semanaInicio = _semanaInicio.AddDays(-7);
+                _semanaFin    = _semanaFin.AddDays(-7);
+                ActualizarLblSemana();
+                CargarReportes();
             };
-            _dtpInicio = dtpInicio;  // Guardar referencia global
-            pnlFiltros.Controls.Add(dtpInicio);
+            pnlFiltros.Controls.Add(btnPrev);
 
-            var dtpFin = new DateTimePicker
+            _lblSemana = new Label
             {
-                Format = DateTimePickerFormat.Short,
-                Value = new DateTime(2026, 2, 7),
-                Location = new Point(293, 10),
-                Size = new Size(115, 32),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+                Location  = new Point(208, 10),
+                Size      = new Size(240, 32),
+                Font      = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = CTexto,
+                BackColor = Color.White,
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            _dtpFin = dtpFin;  // Guardar referencia global
-            pnlFiltros.Controls.Add(dtpFin);
+            RoundControl(_lblSemana, 6);
+            ActualizarLblSemana();
+            pnlFiltros.Controls.Add(_lblSemana);
 
-            var btnVerReporte = MakeButton("VER REPORTE", CAzul, 418, 10, 130, 32);
-            btnVerReporte.Click += (s, e) =>
+            var btnNext = MakeButton("►", CAzul, 456, 10, 32, 32);
+            btnNext.Click += (_, _) =>
             {
-                if (ValidarCampos())
-                {
-                    CargarReportes();
-                }
+                _semanaInicio = _semanaInicio.AddDays(7);
+                _semanaFin    = _semanaFin.AddDays(7);
+                ActualizarLblSemana();
+                CargarReportes();
+            };
+            pnlFiltros.Controls.Add(btnNext);
+
+            var btnVerReporte = MakeButton("VER REPORTE", CAzul, 498, 10, 130, 32);
+            btnVerReporte.Click += (_, _) =>
+            {
+                _semanaInicio = LunesDeEstaSemana(DateTime.Today);
+                _semanaFin    = _semanaInicio.AddDays(6);
+                ActualizarLblSemana();
+                CargarReportes();
             };
             pnlFiltros.Controls.Add(btnVerReporte);
 
@@ -265,15 +295,11 @@ namespace RestaurantKarin
             for (int i = 0; i < nombres.Length; i++)
                 AddEmployeeRow(cardEmp, nombres[i], ingresos[i], porcentajes[i], i);
 
-            var btnPDF = MakeButton("+ EXPORTAR PDF", CAzul, 14, 255, 160, 32);
-            var btnXLS = MakeButton("+ EXPORTAR EXCEL", CNaranja, 184, 255, 160, 32);
-            cardEmp.Controls.Add(btnPDF);
+            var btnXLS = MakeButton("+ EXPORTAR EXCEL", CNaranja, 14, 255, 190, 32);
             cardEmp.Controls.Add(btnXLS);
-            btnPDF.BringToFront();
             btnXLS.BringToFront();
 
-            btnPDF.Click += (s, e) => MessageBox.Show("Exportar a PDF", "Reportes");
-            btnXLS.Click += (s, e) => MessageBox.Show("Exportar a Excel", "Reportes");
+            btnXLS.Click += (s, e) => ExportarExcel();
 
             this.ResumeLayout(false);
         }
@@ -338,6 +364,33 @@ namespace RestaurantKarin
             card.Controls.Add(new Label { Text = value.ToString(), Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = CTexto, AutoSize = true, Location = new Point(350, yBase + 24) });
         }
 
+        private void AddInventoryRow(Panel card, string name, double consumido, string unidad, double maxConsumo, int index)
+        {
+            int yBase = 36 + index * 52;
+            int barW  = 300;
+
+            var ico = new Panel { Location = new Point(12, yBase + 2), Size = new Size(22, 22), BackColor = CAzul };
+            RoundControl(ico, 11);
+            ico.Controls.Add(new Label { Text = "🍽", Font = new Font("Segoe UI Emoji", 8), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, BackColor = Color.Transparent });
+            card.Controls.Add(ico);
+
+            card.Controls.Add(new Label { Text = name, Font = new Font("Segoe UI", 9), ForeColor = CTexto, AutoSize = true, Location = new Point(40, yBase + 4) });
+
+            var barBg = new Panel { Location = new Point(40, yBase + 26), Size = new Size(barW, 12), BackColor = CAzulMedio };
+            RoundControl(barBg, 6);
+            card.Controls.Add(barBg);
+
+            int fill = maxConsumo > 0 ? Math.Max(1, (int)(barW * consumido / maxConsumo)) : 1;
+            var barFg = new Panel { Location = new Point(0, 0), Size = new Size(fill, 12), BackColor = CNaranja };
+            RoundControl(barFg, 6);
+            barBg.Controls.Add(barFg);
+
+            string lbl = consumido >= 10000 ? $"{consumido / 1000:F2}k {unidad}"
+                       : consumido >= 1      ? $"{consumido:F1} {unidad}"
+                       :                       $"{consumido:F3} {unidad}";
+            card.Controls.Add(new Label { Text = lbl, Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = CTexto, AutoSize = true, Location = new Point(350, yBase + 24) });
+        }
+
         private void AddEmployeeRow(Panel card, string name, string income, int pct, int index)
         {
             int yBase = 36 + index * 52;
@@ -393,26 +446,29 @@ namespace RestaurantKarin
             using var brTxt = new SolidBrush(CTexto);
             using var brBar = new SolidBrush(CNaranja);
 
-            double maxVal = 700;
+            double maxVal = 100;
+            foreach (var v in _ventasDiarias) if (v > maxVal) maxVal = v;
+            maxVal = Math.Ceiling(maxVal / 100.0) * 100;
             int steps = 7;
+            double stepVal = maxVal / steps;
 
             for (int i = 0; i <= steps; i++)
             {
                 float y = oy - (float)(gH * i / steps);
                 g.DrawLine(penGrid, ox, y, ox + gW, y);
-                string lbl = $"${i * 100}";
+                string lbl = $"${i * stepVal:0}";
                 var sz = g.MeasureString(lbl, fntAx);
                 g.DrawString(lbl, fntAx, brTxt, ox - sz.Width - 4, y - sz.Height / 2);
             }
 
-            int n = _ventas.Length;
+            int n = _ventasDiarias.Length;
             float slot = gW / (float)n;
             float bw = slot * 0.55f;
             float bo = (slot - bw) / 2f;
 
             for (int i = 0; i < n; i++)
             {
-                float barH = (float)(_ventas[i] / maxVal * gH);
+                float barH = (float)(_ventasDiarias[i] / maxVal * gH);
                 float bx = ox + i * slot + bo;
                 float by = oy - barH;
 
@@ -444,68 +500,7 @@ namespace RestaurantKarin
             ctrl.Region = new Region(path);
         }
 
-        /// <summary>
-        /// Valida todos los campos de filtro del reporte.
-        /// Verifica fechas válidas, rangos correctos y sanitiza datos.
-        /// </summary>
-        /// <returns>true si todos los campos son válidos; false si hay errores</returns>
-        public bool ValidarCampos()
-        {
-            // Limpiar errores previos
-            _errorProvider.Clear();
-
-            // Lista de errores encontrados
-            var errores = new List<string>();
-            Control primerControlConError = null;
-
-            // ─ VALIDACIÓN 1: Verificar que las fechas no estén vacías
-            if (_dtpInicio.Value == null)
-            {
-                errores.Add("La fecha de inicio es requerida.");
-                _errorProvider.SetError(_dtpInicio, "Fecha inicio requerida");
-                if (primerControlConError == null) primerControlConError = _dtpInicio;
-            }
-
-            if (_dtpFin.Value == null)
-            {
-                errores.Add("La fecha de fin es requerida.");
-                _errorProvider.SetError(_dtpFin, "Fecha fin requerida");
-                if (primerControlConError == null) primerControlConError = _dtpFin;
-            }
-
-            // ─ VALIDACIÓN 2: Comparar rangos de fechas
-            if (_dtpInicio.Value != null && _dtpFin.Value != null)
-            {
-                DateTime fechaInicio = _dtpInicio.Value.Date;
-                DateTime fechaFin = _dtpFin.Value.Date;
-
-                if (fechaInicio > fechaFin)
-                {
-                    errores.Add("La fecha de inicio no puede ser mayor a la fecha de fin.");
-                    _errorProvider.SetError(_dtpInicio, "Debe ser ≤ fecha fin");
-                    if (primerControlConError == null) primerControlConError = _dtpInicio;
-                }
-            }
-
-            // ─ VALIDACIÓN 3: Mostrar errores acumulados
-            if (errores.Count > 0)
-            {
-                // Poner el foco en el primer control con error
-                if (primerControlConError != null)
-                {
-                    primerControlConError.Focus();
-                }
-
-                // Mostrar MessageBox con todos los errores
-                string mensajeError = "❌ Se encontraron los siguientes errores:\n\n" +
-                                     string.Join("\n• ", errores);
-                MessageBox.Show(mensajeError, "Validación de Reporte", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-                return false;
-            }
-
-            return true;
-        }
+        public bool ValidarCampos() => _semanaInicio <= _semanaFin;
 
         /// <summary>
         /// Sanitiza una cadena de texto para prevenir inyección SQL.
@@ -583,13 +578,18 @@ namespace RestaurantKarin
                     return;
                 }
 
-                DateTime fechaInicio = _dtpInicio.Value.Date;
-                DateTime fechaFin = _dtpFin.Value.Date;
+                DateTime fechaInicio = _semanaInicio;
+                DateTime fechaFin    = _semanaFin;
 
                 DataTable dtVentas    = DatabaseHelper.ObtenerReporteVentas(fechaInicio, fechaFin);
                 DataTable dtProductos = DatabaseHelper.ObtenerReporteProductosMasVendidos(fechaInicio, fechaFin);
                 DataTable dtEmpleados = DatabaseHelper.ObtenerReporteIngresosPorEmpleado(fechaInicio, fechaFin);
                 DataTable dtInventario = DatabaseHelper.ObtenerReporteConsumoInventario(fechaInicio, fechaFin);
+
+                _dtVentas     = dtVentas;
+                _dtProductos  = dtProductos;
+                _dtEmpleados  = dtEmpleados;
+                _dtInventario = dtInventario;
 
                 this.SuspendLayout();
                 ProcesarReporteVentas(dtVentas);
@@ -609,18 +609,18 @@ namespace RestaurantKarin
         /// </summary>
         private void ProcesarReporteVentas(DataTable dtVentas)
         {
+            _ventasDiarias = new double[7];
+
             if (dtVentas == null || dtVentas.Rows.Count == 0)
             {
-                _lblTotalVentas.Text = "$0.00";
+                _lblTotalVentas.Text     = "$0.00";
                 _lblCantidadOrdenes.Text = "0 Órdenes";
                 _pnlChart.Invalidate();
-                System.Diagnostics.Debug.WriteLine("✓ REPORTE VENTAS: Actualizado (sin datos)");
                 return;
             }
 
-            // Calcular totales
-            decimal totalVentas = 0;
-            int totalOrdenes = 0;
+            decimal totalVentas  = 0;
+            int     totalOrdenes = 0;
 
             foreach (DataRow row in dtVentas.Rows)
             {
@@ -629,14 +629,21 @@ namespace RestaurantKarin
 
                 if (row["CantidadOrdenes"] != DBNull.Value)
                     totalOrdenes += Convert.ToInt32(row["CantidadOrdenes"]);
+
+                // Poblar ventas por día de la semana para el gráfico
+                if (row["Fecha"] != DBNull.Value &&
+                    DateTime.TryParse(row["Fecha"].ToString(), out DateTime fecha))
+                {
+                    int idx = ((int)fecha.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+                    if (idx >= 0 && idx < 7)
+                        _ventasDiarias[idx] = row["VentasTotal"] != DBNull.Value
+                            ? Convert.ToDouble(row["VentasTotal"]) : 0;
+                }
             }
 
-            // Actualizar UI
-            _lblTotalVentas.Text = $"${totalVentas:F2}";
+            _lblTotalVentas.Text     = $"${totalVentas:F2}";
             _lblCantidadOrdenes.Text = $"{totalOrdenes} Órdenes";
-            _pnlChart.Invalidate();  // Redibujar gráfico
-
-            System.Diagnostics.Debug.WriteLine($"✓ REPORTE VENTAS: Actualizado - ${totalVentas:F2} en {totalOrdenes} órdenes");
+            _pnlChart.Invalidate();
         }
 
         /// <summary>
@@ -646,7 +653,13 @@ namespace RestaurantKarin
         {
             if (dtProductos == null || dtProductos.Rows.Count == 0)
             {
-                System.Diagnostics.Debug.WriteLine("✓ REPORTE PRODUCTOS: Actualizado (sin datos)");
+                _cardProd.SuspendLayout();
+                _cardProd.Controls.Clear();
+                var hdrVacio = new Panel { Location = new Point(0, 0), Size = new Size(_cardProd.Width, 30), BackColor = CHeaderCard };
+                hdrVacio.Controls.Add(new Label { Text = "Productos Más Vendidos", Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0), BackColor = Color.Transparent });
+                _cardProd.Controls.Add(hdrVacio);
+                _cardProd.Controls.Add(new Label { Text = "Sin datos para este período", Font = new Font("Segoe UI", 9), ForeColor = CTexto, AutoSize = true, Location = new Point(14, 48) });
+                _cardProd.ResumeLayout(false);
                 return;
             }
 
@@ -703,7 +716,17 @@ namespace RestaurantKarin
         {
             if (dtEmpleados == null || dtEmpleados.Rows.Count == 0)
             {
-                System.Diagnostics.Debug.WriteLine("✓ REPORTE EMPLEADOS: Actualizado (sin datos)");
+                _cardEmp.SuspendLayout();
+                _cardEmp.Controls.Clear();
+                var hdrVacio = new Panel { Location = new Point(0, 0), Size = new Size(_cardEmp.Width, 30), BackColor = CHeaderCard };
+                hdrVacio.Controls.Add(new Label { Text = "Ingresos por Empleado", Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0), BackColor = Color.Transparent });
+                _cardEmp.Controls.Add(hdrVacio);
+                _cardEmp.Controls.Add(new Label { Text = "Sin datos para este período", Font = new Font("Segoe UI", 9), ForeColor = CTexto, AutoSize = true, Location = new Point(14, 48) });
+                var btnXlsVacio = MakeButton("+ EXPORTAR EXCEL", CNaranja, 14, 255, 190, 32);
+                btnXlsVacio.Click += (s, e) => ExportarExcel();
+                _cardEmp.Controls.Add(btnXlsVacio);
+                btnXlsVacio.BringToFront();
+                _cardEmp.ResumeLayout(false);
                 return;
             }
 
@@ -754,60 +777,169 @@ namespace RestaurantKarin
             _cardEmp.ResumeLayout(false);
         }
 
+        // ─────────────────────────────────────────────────────────────────
+        // EXPORTACIÓN
+        // ─────────────────────────────────────────────────────────────────
+
+        private void ExportarExcel()
+        {
+            if (_dtVentas == null)
+            {
+                MessageBox.Show("Primero carga los datos antes de exportar.", "Sin datos",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using var sfd = new SaveFileDialog
+            {
+                Title    = "Guardar reporte Excel",
+                Filter   = "Archivo Excel|*.xlsx",
+                FileName = $"Reporte_{_semanaInicio:yyyy-MM-dd}.xlsx"
+            };
+            if (sfd.ShowDialog() != DialogResult.OK) return;
+
+            try
+            {
+                using var wb = new XLWorkbook();
+                string periodo = $"Período: {_semanaInicio:dd/MM/yyyy} — {_semanaFin:dd/MM/yyyy}";
+
+                void EstiloEncabezado(IXLCell cell)
+                {
+                    cell.Style.Font.Bold = true;
+                    cell.Style.Fill.BackgroundColor = XLColor.FromArgb(30, 80, 120);
+                    cell.Style.Font.FontColor = XLColor.White;
+                }
+
+                // ── Hoja Ventas ────────────────────────────────────────────────
+                var wsV = wb.Worksheets.Add("Ventas");
+                wsV.Cell(1, 1).Value = "REPORTE SEMANAL — VENTAS";
+                wsV.Cell(1, 1).Style.Font.Bold = true; wsV.Cell(1, 1).Style.Font.FontSize = 14;
+                wsV.Cell(2, 1).Value = periodo;
+                int r = 4;
+                foreach (var (h, c) in new[] { ("Fecha", 1), ("Ventas Total", 2), ("Cantidad Órdenes", 3) })
+                { wsV.Cell(r, c).Value = h; EstiloEncabezado(wsV.Cell(r, c)); }
+                r++;
+                if (_dtVentas != null)
+                    foreach (DataRow row in _dtVentas.Rows)
+                    {
+                        wsV.Cell(r, 1).Value = row["Fecha"]?.ToString() ?? "";
+                        wsV.Cell(r, 2).Value = row["VentasTotal"] != DBNull.Value ? Convert.ToDouble(row["VentasTotal"]) : 0;
+                        wsV.Cell(r, 3).Value = row["CantidadOrdenes"] != DBNull.Value ? Convert.ToInt32(row["CantidadOrdenes"]) : 0;
+                        r++;
+                    }
+                wsV.Columns().AdjustToContents();
+
+                // ── Hoja Productos ─────────────────────────────────────────────
+                var wsP = wb.Worksheets.Add("Productos");
+                wsP.Cell(1, 1).Value = "PRODUCTOS MÁS VENDIDOS";
+                wsP.Cell(1, 1).Style.Font.Bold = true; wsP.Cell(1, 1).Style.Font.FontSize = 14;
+                wsP.Cell(2, 1).Value = periodo;
+                r = 4;
+                foreach (var (h, c) in new[] { ("Producto", 1), ("Cantidad Vendida", 2) })
+                { wsP.Cell(r, c).Value = h; EstiloEncabezado(wsP.Cell(r, c)); }
+                r++;
+                if (_dtProductos != null)
+                    foreach (DataRow row in _dtProductos.Rows)
+                    {
+                        wsP.Cell(r, 1).Value = row["Producto"]?.ToString() ?? "";
+                        wsP.Cell(r, 2).Value = row["CantidadVendida"] != DBNull.Value ? Convert.ToInt32(row["CantidadVendida"]) : 0;
+                        r++;
+                    }
+                wsP.Columns().AdjustToContents();
+
+                // ── Hoja Empleados ─────────────────────────────────────────────
+                var wsE = wb.Worksheets.Add("Empleados");
+                wsE.Cell(1, 1).Value = "INGRESOS POR EMPLEADO";
+                wsE.Cell(1, 1).Style.Font.Bold = true; wsE.Cell(1, 1).Style.Font.FontSize = 14;
+                wsE.Cell(2, 1).Value = periodo;
+                r = 4;
+                foreach (var (h, c) in new[] { ("Empleado", 1), ("Ingreso Generado", 2) })
+                { wsE.Cell(r, c).Value = h; EstiloEncabezado(wsE.Cell(r, c)); }
+                r++;
+                if (_dtEmpleados != null)
+                    foreach (DataRow row in _dtEmpleados.Rows)
+                    {
+                        wsE.Cell(r, 1).Value = row["Empleado"]?.ToString() ?? "";
+                        wsE.Cell(r, 2).Value = row["IngresoGenerado"] != DBNull.Value ? Convert.ToDouble(row["IngresoGenerado"]) : 0;
+                        r++;
+                    }
+                wsE.Columns().AdjustToContents();
+
+                // ── Hoja Inventario ────────────────────────────────────────────
+                var wsI = wb.Worksheets.Add("Inventario");
+                wsI.Cell(1, 1).Value = "CONSUMO DE INVENTARIO";
+                wsI.Cell(1, 1).Style.Font.Bold = true; wsI.Cell(1, 1).Style.Font.FontSize = 14;
+                wsI.Cell(2, 1).Value = periodo;
+                r = 4;
+                foreach (var (h, c) in new[] { ("Insumo", 1), ("Stock Actual", 2), ("Costo Total", 3) })
+                { wsI.Cell(r, c).Value = h; EstiloEncabezado(wsI.Cell(r, c)); }
+                r++;
+                if (_dtInventario != null)
+                    foreach (DataRow row in _dtInventario.Rows)
+                    {
+                        wsI.Cell(r, 1).Value = row["Insumo"]?.ToString() ?? "";
+                        wsI.Cell(r, 2).Value = row["StockActual"] != DBNull.Value ? Convert.ToDouble(row["StockActual"]) : 0;
+                        wsI.Cell(r, 3).Value = row["CostoTotal"] != DBNull.Value ? Convert.ToDouble(row["CostoTotal"]) : 0;
+                        r++;
+                    }
+                wsI.Columns().AdjustToContents();
+
+                wb.SaveAs(sfd.FileName);
+
+                MessageBox.Show("Excel exportado correctamente.", "Exportar Excel",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo(sfd.FileName) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al exportar Excel:\n" + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         /// <summary>
         /// Procesa el reporte de consumo de inventario y actualiza la UI.
         /// </summary>
         private void ProcesarReporteInventario(DataTable dtInventario)
         {
-            if (dtInventario == null || dtInventario.Rows.Count == 0)
-            {
-                _lblInventarioConsumido.Text = "0% del Inventario Consumido";
-                return;
-            }
-
             _cardInv.SuspendLayout();
             _cardInv.Controls.Clear();
 
-            var hdr = new Panel
-            {
-                Location = new Point(0, 0),
-                Size = new Size(_cardInv.Width, 30),
-                BackColor = CHeaderCard
-            };
+            var hdr = new Panel { Location = new Point(0, 0), Size = new Size(_cardInv.Width, 30), BackColor = CHeaderCard };
+            hdr.Controls.Add(new Label { Text = "Consumo de Inventario", Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0), BackColor = Color.Transparent });
             _cardInv.Controls.Add(hdr);
-            hdr.Controls.Add(new Label
+
+            if (dtInventario == null || dtInventario.Rows.Count == 0)
             {
-                Text = "Consumo de Inventario",
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.White,
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(12, 0, 0, 0),
-                BackColor = Color.Transparent
-            });
+                _cardInv.Controls.Add(new Label { Text = "Sin consumo registrado en este período", Font = new Font("Segoe UI", 9), ForeColor = CTexto, AutoSize = true, Location = new Point(14, 48) });
+                _lblInventarioConsumido.Text = "0 insumos consumidos en el período";
+                _cardInv.Controls.Add(_lblInventarioConsumido);
+                _cardInv.ResumeLayout(false);
+                return;
+            }
 
+            // Calcular máximo de consumo para proporcionar las barras
+            double maxConsumo = 1.0;
             decimal costoTotal = 0;
-            decimal stockTotal = 0;
-            int maxInsumos = Math.Min(4, dtInventario.Rows.Count);
-
             foreach (DataRow row in dtInventario.Rows)
             {
-                decimal stockActual = row["StockActual"] != DBNull.Value ? Convert.ToDecimal(row["StockActual"]) : 0;
+                double c = row["Consumido"] != DBNull.Value ? Convert.ToDouble(row["Consumido"]) : 0;
+                if (c > maxConsumo) maxConsumo = c;
                 costoTotal += row["CostoTotal"] != DBNull.Value ? Convert.ToDecimal(row["CostoTotal"]) : 0;
-                stockTotal += stockActual;
             }
 
+            int maxInsumos = Math.Min(4, dtInventario.Rows.Count);
             for (int i = 0; i < maxInsumos; i++)
             {
-                DataRow row = dtInventario.Rows[i];
-                string nombre = row["Insumo"].ToString();
-                int stock = Convert.ToInt32(row["StockActual"] != DBNull.Value ? row["StockActual"] : 0);
-                int maxStock = stock > 0 ? stock : 100;
-                AddProductRow(_cardInv, nombre, stock, maxStock, i);
+                DataRow row    = dtInventario.Rows[i];
+                string  nombre = row["Insumo"].ToString() ?? "";
+                double  cons   = row["Consumido"] != DBNull.Value ? Convert.ToDouble(row["Consumido"]) : 0;
+                string  unidad = row["Unidad"].ToString() ?? "";
+                AddInventoryRow(_cardInv, nombre, cons, unidad, maxConsumo, i);
             }
 
-            int porcentajeConsumido = stockTotal > 0 ? Math.Min(100, (int)((costoTotal / (stockTotal * 0.5m)) * 100)) : 0;
-            _lblInventarioConsumido.Text = $"{porcentajeConsumido}% del Inventario Consumido";
+            _lblInventarioConsumido.Text = $"{dtInventario.Rows.Count} insumos consumidos — costo estimado: ${costoTotal:F2}";
             _cardInv.Controls.Add(_lblInventarioConsumido);
 
             _cardInv.ResumeLayout(false);

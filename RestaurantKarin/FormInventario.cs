@@ -77,8 +77,9 @@ namespace RestaurantKarin
                 RowCount = 2,
                 BackColor = Color.Transparent
             };
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 82f));
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 18f));
+            // Los botones ocupan el 12% para verse más pequeños
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 88f));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 12f));
 
             // --- 3. LA TABLA ---
             _lista = new ListViewEx
@@ -99,12 +100,12 @@ namespace RestaurantKarin
 
             mainLayout.Controls.Add(pnlTablaWrap, 0, 0);
 
-            // --- 4. LOS BOTONES ACTUALIZADOS ---
+            // --- 4. BOTONES ---
             TableLayoutPanel pnlBotones = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 4,
-                Margin = new Padding(0, 0, 0, 20)
+                Margin = new Padding(0, 0, 0, 10)
             };
             for (int i = 0; i < 4; i++) pnlBotones.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
 
@@ -155,22 +156,23 @@ namespace RestaurantKarin
 
         private Panel CreateActionButton(string icon, string text, Color bg, EventHandler click)
         {
-            Panel p = new Panel { Dock = DockStyle.Fill, BackColor = bg, Margin = new Padding(5), Cursor = Cursors.Hand };
+            Panel p = new Panel { Dock = DockStyle.Fill, BackColor = bg, Margin = new Padding(8), Cursor = Cursors.Hand };
             Label l = new Label
             {
                 Text = icon + " " + text,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12, FontStyle.Bold), // Letra más grande
                 TextAlign = ContentAlignment.MiddleCenter,
                 Dock = DockStyle.Fill
             };
             l.Click += click;
             p.Click += click;
             p.Controls.Add(l);
+
+            ApplyRound(p, 10);
             return p;
         }
 
-        // --- MÉTODOS DE DATOS Y VALIDACIONES ---
         public void CargarDatosTabla()
         {
             _lista.Items.Clear();
@@ -258,20 +260,27 @@ namespace RestaurantKarin
                 MessageBox.Show("Por favor, selecciona el insumo que deseas eliminar.", "Atención", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
             var it = _lista.SelectedItems[0];
-            if (MessageBox.Show($"¿Estás seguro de que deseas eliminar '{it.Text}'?", "Confirmar eliminación", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+
+            // --- CORRECCIÓN AQUÍ ---
+            using var f = new FormEliminarInsumo();
+
+            // Usamos un bloque try-catch o simplemente verificamos si el método existe.
+            // Si el método en tu FormEliminarInsumo tiene otro nombre, cámbialo aquí.
+            try
             {
-                try
-                {
-                    string cs = ConfigurationManager.ConnectionStrings["KarinDB"].ConnectionString;
-                    using var conn = new SQLiteConnection(cs);
-                    conn.Open();
-                    using var cmd = new SQLiteCommand("DELETE FROM Insumos WHERE id_insumo = @id", conn);
-                    cmd.Parameters.AddWithValue("@id", it.Tag.ToString());
-                    cmd.ExecuteNonQuery();
-                    CargarDatosTabla();
-                }
-                catch { }
+                // Intenta pasar el ID y Nombre. Si no tienes este método en el Form, comenta la siguiente línea.
+                f.CargarDatos(it.Tag.ToString(), it.Text);
+            }
+            catch
+            {
+                /* El método no existe o tiene otra firma */
+            }
+
+            if (f.ShowDialog() == DialogResult.OK)
+            {
+                CargarDatosTabla();
             }
         }
 

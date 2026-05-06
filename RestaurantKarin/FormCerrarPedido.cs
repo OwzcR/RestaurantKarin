@@ -18,7 +18,8 @@ namespace RestaurantKarin
         private Label   _lblDetallePropina    = null!;
         private Label   _lblDetalleTotalNeto  = null!;
 
-        public bool Confirmado { get; private set; }
+        public bool    Confirmado        { get; private set; }
+        public decimal PropinaConfirmada { get; private set; }
 
         private static readonly Color ColHeader   = Color.FromArgb(14, 77, 120);
         private static readonly Color ColBg       = Color.FromArgb(217, 217, 217);
@@ -97,8 +98,9 @@ namespace RestaurantKarin
                 using var dlg = new FormImpresion();
                 if (dlg.ShowDialog(this) == DialogResult.OK && dlg.Confirmado)
                 {
-                    Confirmado   = true;
-                    DialogResult = DialogResult.OK;
+                    PropinaConfirmada = propina;
+                    Confirmado        = true;
+                    DialogResult      = DialogResult.OK;
                     Close();
                 }
             };

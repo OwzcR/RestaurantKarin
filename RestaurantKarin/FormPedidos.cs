@@ -22,6 +22,7 @@ namespace RestaurantKarin
         public int      PropinaPercent{ get; set; }
         public int      NumeroMesa    { get; set; }
         public int      IdCuenta      { get; set; }
+        public DateTime? FechaCierre  { get; set; }
     }
 
     

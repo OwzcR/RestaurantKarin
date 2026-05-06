@@ -398,6 +398,8 @@ namespace RestaurantKarin
                     cmd.Parameters.AddWithValue("@sub",    d.Subtotal);
                     cmd.Parameters.AddWithValue("@notas",  d.Nombre.Contains('(') ? d.Nombre : "");
                     cmd.ExecuteNonQuery();
+
+                    DescontarInventario(nombreBase, d.Cantidad, _idCuenta, con, tran);
                 }
 
                 decimal nuevoSubtotal;
@@ -426,6 +428,87 @@ namespace RestaurantKarin
             {
                 tran.Rollback();
                 throw;
+            }
+        }
+
+        // Descuenta los insumos de inventario según las líneas de la receta y registra el movimiento.
+        // porciones: cuántas porciones se vendieron en este ítem del carrito.
+        private static void DescontarInventario(string nombreReceta, int porciones, int idCuenta,
+                                                SQLiteConnection con, SQLiteTransaction tran)
+        {
+            // Obtener id_receta y porciones_receta
+            int     idReceta       = -1;
+            decimal porcionesTotal = 1m;
+
+            using (var cmd = new SQLiteCommand(
+                "SELECT id_receta, porciones FROM receta WHERE nombre = @n COLLATE NOCASE LIMIT 1;",
+                con, tran))
+            {
+                cmd.Parameters.AddWithValue("@n", nombreReceta);
+                using var r = cmd.ExecuteReader();
+                if (!r.Read()) return;
+                idReceta       = Convert.ToInt32(r["id_receta"]);
+                porcionesTotal = Convert.ToDecimal(r["porciones"]);
+                if (porcionesTotal <= 0m) porcionesTotal = 1m;
+            }
+
+            // Leer líneas de ingredientes
+            var lineas = new List<(string Insumo, decimal Cantidad, string Unidad)>();
+            using (var cmd = new SQLiteCommand(
+                "SELECT insumo, cantidad, unidad FROM receta_linea WHERE id_receta = @id;",
+                con, tran))
+            {
+                cmd.Parameters.AddWithValue("@id", idReceta);
+                using var r = cmd.ExecuteReader();
+                while (r.Read())
+                    lineas.Add((r["insumo"].ToString()!, Convert.ToDecimal(r["cantidad"]), r["unidad"].ToString()!));
+            }
+
+            foreach (var (insumo, cantidadReceta, unidadReceta) in lineas)
+            {
+                // Cantidad a descontar: proporción por porción × porciones vendidas
+                decimal totalConsumo = cantidadReceta / porcionesTotal * porciones;
+
+                // Leer unidad del insumo en inventario
+                string unidadInsumo;
+                using (var cmd = new SQLiteCommand(
+                    "SELECT Unidad FROM Insumos WHERE Nombre = @n COLLATE NOCASE LIMIT 1;",
+                    con, tran))
+                {
+                    cmd.Parameters.AddWithValue("@n", insumo);
+                    var result = cmd.ExecuteScalar();
+                    if (result == null || result == DBNull.Value) continue;
+                    unidadInsumo = result.ToString()!;
+                }
+
+                // Convertir si las unidades difieren
+                if (!string.Equals(unidadReceta.Trim(), unidadInsumo.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    decimal? convertido = UnitConverter.Convert(totalConsumo, unidadReceta, unidadInsumo);
+                    if (convertido == null) continue; // unidades incompatibles, omitir
+                    totalConsumo = convertido.Value;
+                }
+
+                // Descontar del stock (mínimo 0)
+                using (var upd = new SQLiteCommand(@"
+                    UPDATE Insumos
+                    SET StockActual = MAX(0, StockActual - @qty)
+                    WHERE Nombre = @n COLLATE NOCASE;", con, tran))
+                {
+                    upd.Parameters.AddWithValue("@qty", totalConsumo);
+                    upd.Parameters.AddWithValue("@n",   insumo);
+                    upd.ExecuteNonQuery();
+                }
+
+                // Registrar movimiento para reportes
+                using var mov = new SQLiteCommand(@"
+                    INSERT INTO inventario_movimientos (id_cuenta, insumo, cantidad, unidad, fecha)
+                    VALUES (@cuenta, @insumo, @qty, @unidad, CURRENT_TIMESTAMP);", con, tran);
+                mov.Parameters.AddWithValue("@cuenta", idCuenta);
+                mov.Parameters.AddWithValue("@insumo", insumo);
+                mov.Parameters.AddWithValue("@qty",    totalConsumo);
+                mov.Parameters.AddWithValue("@unidad", unidadInsumo);
+                mov.ExecuteNonQuery();
             }
         }
 
