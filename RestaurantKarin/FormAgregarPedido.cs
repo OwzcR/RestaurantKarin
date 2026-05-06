@@ -54,6 +54,9 @@ namespace RestaurantKarin
         private const string Conn = "Data Source=karin_pos.db;Version=3;";
 
         // ─────────────────────────────────────────────────────────────────────
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
         public FormAgregarPedido(int idMesa, int idCuenta)
         {
             _idMesa   = idMesa;
@@ -61,6 +64,12 @@ namespace RestaurantKarin
             BuildUI();
             CargarProductos();
             CargarCategoriasCombo();
+
+            HandleCreated += (_, _) =>
+            {
+                int pref = 2; // DWMWCP_ROUND — esquinas redondeadas nativas Win11
+                DwmSetWindowAttribute(Handle, 33, ref pref, 4);
+            };
         }
 
         // ─────────────────────────────────────────────────────────────────────
