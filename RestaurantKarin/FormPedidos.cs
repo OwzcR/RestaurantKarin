@@ -40,7 +40,7 @@ namespace RestaurantKarin
         private List<MesaModel> _mesas = new();
 
         // ── Layout constants ──────────────────────────────────────────────────
-        private const int CardHeight      = 175;
+        private const int CardHeight      = 190;
         private const int RowHeight       = 56;
         private const int MaxActivasH     = 570;  // ~3 cards
         private const int MaxDisponiblesH = 280;  // ~4 rows
@@ -389,7 +389,7 @@ namespace RestaurantKarin
             card.Paint += (_, e) =>
             {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                using var path = RoundedRect(new Rectangle(0, 0, card.Width - 1, card.Height - 1), 12);
+                using var path = RoundedRect(new Rectangle(0, 0, card.Width - 1, card.Height - 1), 20);
                 using var fill = new SolidBrush(CardBg);
                 e.Graphics.FillPath(fill, path);
             };
@@ -397,15 +397,15 @@ namespace RestaurantKarin
             // Table icon
             var iconPanel = new Panel
             {
-                Size = new Size(72, 92),
-                Location = new Point(14, 18),
+                Size = new Size(100, 115),
+                Location = new Point(14, 12),
                 BackColor = Color.Transparent
             };
             iconPanel.Paint += DrawTableIcon;
             card.Controls.Add(iconPanel);
 
             // Info labels — two-row grid matching the original design
-            int ix = 100;
+            int ix = 126;
             card.Controls.Add(MakeInfoLabel($"MESA : {m.Id}",           ix,       22));
             card.Controls.Add(MakeInfoLabel($"Personas : {m.Personas}", ix + 175, 22));
             card.Controls.Add(MakeInfoLabel($"Hora Llegada : {m.HoraLlegada.ToString("hh:mm tt").ToLower()}", ix + 360, 22));
@@ -432,6 +432,9 @@ namespace RestaurantKarin
             var btnA = MakeActionBtn("Agregar Pedido", BtnAgregar, () => OnAgregarPedido(m));
             var btnD = MakeActionBtn("Detalles", BtnDetalles, () => OnVerDetalles(m));
             var btnC = MakeActionBtn("Cerrar Cuenta", BtnCerrar, () => OnCerrarCuenta(m));
+            ApplyRoundedButton(btnA, 8);
+            ApplyRoundedButton(btnD, 8);
+            ApplyRoundedButton(btnC, 8);
 
             btnA.Dock = DockStyle.Fill;
             btnD.Dock = DockStyle.Fill;
@@ -442,6 +445,7 @@ namespace RestaurantKarin
             actionBar.Controls.Add(btnC, 2, 0);
 
             card.Controls.Add(actionBar);
+            ApplyRoundedRegion(card, 20);
             return card;
         }
 
@@ -658,25 +662,25 @@ namespace RestaurantKarin
 
             int cx = p.Width / 2, cy = p.Height / 2;
 
-            using var pen = new Pen(Color.FromArgb(84, 110, 122), 1.8f);
+            using var pen = new Pen(Color.FromArgb(84, 110, 122), 2.4f);
             using var tableFill = new SolidBrush(Color.FromArgb(225, 238, 248));
             using var chairFill = new SolidBrush(Color.FromArgb(200, 220, 238));
 
             // Table surface (top-down view, centered)
-            g.FillRectangle(tableFill, cx - 18, cy - 22, 36, 42);
-            g.DrawRectangle(pen, cx - 18, cy - 22, 36, 42);
+            g.FillRectangle(tableFill, cx - 24, cy - 30, 48, 57);
+            g.DrawRectangle(pen, cx - 24, cy - 30, 48, 57);
 
             // Left chairs
-            g.FillRectangle(chairFill, cx - 30, cy - 14, 11, 10);
-            g.DrawRectangle(pen, cx - 30, cy - 14, 11, 10);
-            g.FillRectangle(chairFill, cx - 30, cy + 4, 11, 10);
-            g.DrawRectangle(pen, cx - 30, cy + 4, 11, 10);
+            g.FillRectangle(chairFill, cx - 40, cy - 19, 15, 14);
+            g.DrawRectangle(pen, cx - 40, cy - 19, 15, 14);
+            g.FillRectangle(chairFill, cx - 40, cy + 5, 15, 14);
+            g.DrawRectangle(pen, cx - 40, cy + 5, 15, 14);
 
             // Right chairs
-            g.FillRectangle(chairFill, cx + 19, cy - 14, 11, 10);
-            g.DrawRectangle(pen, cx + 19, cy - 14, 11, 10);
-            g.FillRectangle(chairFill, cx + 19, cy + 4, 11, 10);
-            g.DrawRectangle(pen, cx + 19, cy + 4, 11, 10);
+            g.FillRectangle(chairFill, cx + 25, cy - 19, 15, 14);
+            g.DrawRectangle(pen, cx + 25, cy - 19, 15, 14);
+            g.FillRectangle(chairFill, cx + 25, cy + 5, 15, 14);
+            g.DrawRectangle(pen, cx + 25, cy + 5, 15, 14);
         }
 
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
@@ -695,22 +699,26 @@ namespace RestaurantKarin
         // Cards and rows use Paint-based rounded drawing instead.
         private static void ApplyRoundedRegion(Control ctrl, int radius)
         {
-            ctrl.Resize += (_, _) =>
+            void Apply()
             {
                 if (ctrl.Width <= 0 || ctrl.Height <= 0) return;
                 using var path = RoundedRect(new Rectangle(0, 0, ctrl.Width, ctrl.Height), radius);
                 ctrl.Region = new Region(path);
-            };
+            }
+            Apply();
+            ctrl.Resize += (_, _) => Apply();
         }
 
         private static void ApplyRoundedButton(Button btn, int radius)
         {
-            btn.Resize += (_, _) =>
+            void Apply()
             {
                 if (btn.Width <= 0 || btn.Height <= 0) return;
                 using var path = RoundedRect(new Rectangle(0, 0, btn.Width, btn.Height), radius);
                 btn.Region = new Region(path);
-            };
+            }
+            Apply();
+            btn.Resize += (_, _) => Apply();
         }
 
         private static Form CreateOverlay(Form owner)
