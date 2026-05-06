@@ -41,15 +41,17 @@ namespace RestaurantKarin
         private Label         lblNombreProducto = null!;
         private Label         lblPrecioProducto = null!;
         private TextBox       txtNotas         = null!;
-        private ComboBox      cmbCategoria     = null!;
+        private TextBox       txtBuscar        = null!;
+        private Label         lblSinResultados = null!;
 
         // ── Paleta ────────────────────────────────────────────────────────────
-        private static readonly Color BgDark     = Color.FromArgb(10, 35, 70);
-        private static readonly Color CardBg     = Color.FromArgb(20, 58, 110);
-        private static readonly Color ItemBg     = Color.FromArgb(30, 75, 135);
-        private static readonly Color BtnQuitar  = Color.FromArgb(0, 35, 55);    // #002337
-        private static readonly Color BtnConfirm = Color.FromArgb(0, 151, 167);  // #0097A7
-        private static readonly Color BtnAgregar = Color.FromArgb(0, 151, 167);  // mismo teal
+        private static readonly Color BgDark     = Color.FromArgb(217, 217, 217);
+        private static readonly Color CardBg     = Color.FromArgb(232, 232, 232);
+        private static readonly Color ItemBg     = Color.White;
+        private static readonly Color TextDark   = Color.FromArgb(20, 20, 20);
+        private static readonly Color BtnQuitar  = Color.FromArgb(128, 128, 128);
+        private static readonly Color BtnConfirm = Color.FromArgb(14, 77, 120);
+        private static readonly Color BtnAgregar = Color.FromArgb(14, 77, 120);
 
         private const string Conn = "Data Source=karin_pos.db;Version=3;";
 
@@ -63,7 +65,6 @@ namespace RestaurantKarin
             _idCuenta = idCuenta;
             BuildUI();
             CargarProductos();
-            CargarCategoriasCombo();
 
             HandleCreated += (_, _) =>
             {
@@ -78,8 +79,8 @@ namespace RestaurantKarin
         private void BuildUI()
         {
             Text            = $"Agregar Pedido — Mesa {_idMesa}";
-            Size            = new Size(860, 590);
-            MinimumSize     = new Size(860, 590);
+            Size            = new Size(920, 590);
+            MinimumSize     = new Size(920, 590);
             StartPosition   = FormStartPosition.CenterParent;
             BackColor       = BgDark;
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -90,7 +91,7 @@ namespace RestaurantKarin
             {
                 Text      = $"🛒  Pedido — Mesa {_idMesa}",
                 Font      = new Font("Sansation", 14, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = TextDark,
                 AutoSize  = true,
                 Location  = new Point(16, 14),
                 BackColor = Color.Transparent
@@ -102,42 +103,54 @@ namespace RestaurantKarin
             var panelIzq = new Panel
             {
                 Location  = new Point(12, 50),
-                Size      = new Size(390, 490),
+                Size      = new Size(450, 490),
                 BackColor = CardBg
             };
-            ApplyRound(panelIzq, 10);
+            ApplyRound(panelIzq, 18);
 
-            var lblCat = MakeLbl("Categoría :", 12, 12);
-            cmbCategoria = new ComboBox
+            var lblCat = MakeLbl("Buscar producto :", 12, 12);
+            txtBuscar = new TextBox
             {
-                Location      = new Point(12, 32),
-                Size          = new Size(366, 26),
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = new Font("Sansation", 9),
-                BackColor     = ItemBg,
-                ForeColor     = Color.White,
-                FlatStyle     = FlatStyle.Flat
+                Location        = new Point(12, 32),
+                Size            = new Size(426, 26),
+                Font            = new Font("Sansation", 9),
+                BackColor       = ItemBg,
+                ForeColor       = TextDark,
+                BorderStyle     = BorderStyle.None,
+                PlaceholderText = "🔍  Escribe el nombre del platillo..."
             };
-            cmbCategoria.SelectedIndexChanged += (_, _) => FiltrarPorCategoria();
+            txtBuscar.TextChanged += (_, _) => FiltrarProductos(txtBuscar.Text);
+
+            lblSinResultados = new Label
+            {
+                Text      = "⚠  Sin resultados para esa búsqueda.",
+                Font      = new Font("Sansation", 9, FontStyle.Italic),
+                ForeColor = Color.FromArgb(180, 0, 0),
+                AutoSize  = true,
+                Location  = new Point(12, 62),
+                BackColor = Color.Transparent,
+                Visible   = false
+            };
 
             var lblProd = MakeLbl("Productos :", 12, 64);
             lstProductos = new ListBox
             {
                 Location      = new Point(12, 84),
-                Size          = new Size(366, 190),
+                Size          = new Size(426, 190),
                 BackColor     = ItemBg,
-                ForeColor     = Color.White,
+                ForeColor     = TextDark,
                 Font          = new Font("Sansation", 10),
                 BorderStyle   = BorderStyle.None,
                 SelectionMode = SelectionMode.One
             };
             lstProductos.SelectedIndexChanged += OnProductoSeleccionado;
+            ApplyRoundCtrl(lstProductos, 8);
 
             lblNombreProducto = new Label
             {
                 Text      = "Selecciona un producto",
                 Font      = new Font("Sansation", 10, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = TextDark,
                 AutoSize  = true,
                 Location  = new Point(12, 284),
                 BackColor = Color.Transparent
@@ -147,7 +160,7 @@ namespace RestaurantKarin
             {
                 Text      = "",
                 Font      = new Font("Sansation", 9),
-                ForeColor = Color.FromArgb(160, 220, 230),
+                ForeColor = Color.FromArgb(60, 60, 60),
                 AutoSize  = true,
                 Location  = new Point(12, 308),
                 BackColor = Color.Transparent
@@ -156,35 +169,36 @@ namespace RestaurantKarin
             var lblCant = MakeLbl("Cantidad :", 12, 340);
             numCantidad = new NumericUpDown
             {
-                Location  = new Point(12, 360),
-                Size      = new Size(80, 28),
-                Minimum   = 1,
-                Maximum   = 99,
-                Value     = 1,
-                Font      = new Font("Sansation", 10),
-                BackColor = ItemBg,
-                ForeColor = Color.White
+                Location    = new Point(12, 360),
+                Size        = new Size(80, 28),
+                Minimum     = 1,
+                Maximum     = 99,
+                Value       = 1,
+                Font        = new Font("Sansation", 10),
+                BackColor   = ItemBg,
+                ForeColor   = TextDark,
+                BorderStyle = BorderStyle.None
             };
 
             var lblNota = MakeLbl("Notas (opcional) :", 110, 340);
             txtNotas = new TextBox
             {
                 Location        = new Point(110, 360),
-                Size            = new Size(268, 28),
+                Size            = new Size(328, 28),
                 Font            = new Font("Sansation", 9),
                 BackColor       = ItemBg,
-                ForeColor       = Color.White,
-                BorderStyle     = BorderStyle.FixedSingle,
+                ForeColor       = TextDark,
+                BorderStyle     = BorderStyle.None,
                 PlaceholderText = "Sin cebolla, extra salsa..."
             };
 
             var btnAgregar = MakeBtn("➕  Agregar al carrito", BtnAgregar,
-                                     new Point(12, 410), new Size(366, 40));
+                                     new Point(12, 410), new Size(426, 40));
             btnAgregar.Click += OnAgregarAlCarrito;
 
             panelIzq.Controls.AddRange(new Control[]
             {
-                lblCat, cmbCategoria,
+                lblCat, txtBuscar, lblSinResultados,
                 lblProd, lstProductos,
                 lblNombreProducto, lblPrecioProducto,
                 lblCant, numCantidad,
@@ -197,17 +211,17 @@ namespace RestaurantKarin
             // ══════════════════════════════════════════════════════════════════
             var panelDer = new Panel
             {
-                Location  = new Point(416, 50),
-                Size      = new Size(418, 490),
+                Location  = new Point(476, 50),
+                Size      = new Size(432, 490),
                 BackColor = CardBg
             };
-            ApplyRound(panelDer, 10);
+            ApplyRound(panelDer, 18);
 
             var lblCarritoTit = new Label
             {
                 Text      = "Carrito de pedido :",
                 Font      = new Font("Sansation", 11, FontStyle.Bold),
-                ForeColor = Color.FromArgb(200, 220, 255),
+                ForeColor = TextDark,
                 AutoSize  = true,
                 Location  = new Point(12, 12),
                 BackColor = Color.Transparent
@@ -216,31 +230,33 @@ namespace RestaurantKarin
             lstCarrito = new ListBox
             {
                 Location      = new Point(12, 36),
-                Size          = new Size(394, 288),
+                Size          = new Size(408, 288),
                 BackColor     = ItemBg,
-                ForeColor     = Color.White,
+                ForeColor     = TextDark,
                 Font          = new Font("Sansation", 9),
                 BorderStyle   = BorderStyle.None,
                 SelectionMode = SelectionMode.One
             };
 
+            ApplyRoundCtrl(lstCarrito, 8);
+
             var btnQuitar = MakeBtn("🗑  Quitar seleccionado", BtnQuitar,
-                                    new Point(12, 334), new Size(394, 38));
+                                    new Point(12, 334), new Size(408, 38));
             btnQuitar.Click += OnQuitarDelCarrito;
 
             lblTotal = new Label
             {
                 Text      = "Total : $0.00",
                 Font      = new Font("Sansation", 13, FontStyle.Bold),
-                ForeColor = Color.FromArgb(100, 220, 200),
+                ForeColor = Color.FromArgb(14, 77, 120),
                 AutoSize  = false,
-                Size      = new Size(394, 30),
+                Size      = new Size(408, 30),
                 Location  = new Point(12, 382),
                 BackColor = Color.Transparent
             };
 
             var btnConfirmar = MakeBtn("✅  Confirmar Pedido", BtnConfirm,
-                                       new Point(12, 420), new Size(394, 42));
+                                       new Point(12, 420), new Size(408, 42));
             btnConfirmar.Click += OnConfirmarPedido;
 
             panelDer.Controls.AddRange(new Control[]
@@ -277,26 +293,31 @@ namespace RestaurantKarin
                 {
                     var p = new ProductoItem
                     {
-                        Id       = Convert.ToInt32(r["id_receta"]),
-                        Nombre   = r["nombre"].ToString()!,
-                        Precio   = Convert.ToDecimal(r["costo_por_porcion"]),
+                        Id        = Convert.ToInt32(r["id_receta"]),
+                        Nombre    = r["nombre"].ToString()!,
+                        Precio    = Convert.ToDecimal(r["costo_por_porcion"]),
                         Categoria = "Recetas"
                     };
-                    _productos.Add(p);
-                    lstProductos.Items.Add($"{p.Nombre}  —  {p.Precio:C}");
+
+                    if (string.IsNullOrWhiteSpace(filtro) ||
+                        p.Nombre.Contains(filtro.Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        _productos.Add(p);
+                        lstProductos.Items.Add($"{p.Nombre}  —  {p.Precio:C}");
+                    }
                 }
             }
             catch { /* DB no disponible: lista queda vacía */ }
         }
 
-        private void CargarCategoriasCombo()
+        private void FiltrarProductos(string query)
         {
-            cmbCategoria.Items.Clear();
-            cmbCategoria.Items.Add("Todas");
-            cmbCategoria.SelectedIndex = 0;
-        }
+            CargarProductos(query);
 
-        private void FiltrarPorCategoria() => CargarProductos();
+            bool sinResultados = _productos.Count == 0 && !string.IsNullOrWhiteSpace(query);
+            lblSinResultados.Visible = sinResultados;
+            txtBuscar.BackColor      = sinResultados ? Color.FromArgb(255, 220, 220) : ItemBg;
+        }
 
         // ─────────────────────────────────────────────────────────────────────
         //  Eventos
@@ -570,7 +591,7 @@ namespace RestaurantKarin
         {
             Text      = text,
             Font      = new Font("Sansation", 9),
-            ForeColor = Color.FromArgb(190, 215, 255),
+            ForeColor = Color.FromArgb(20, 20, 20),
             AutoSize  = true,
             Location  = new Point(x, y),
             BackColor = Color.Transparent
@@ -590,24 +611,53 @@ namespace RestaurantKarin
                 Cursor    = Cursors.Hand
             };
             btn.FlatAppearance.BorderSize = 0;
+            ApplyRoundBtn(btn, 14);
             return btn;
+        }
+
+        private static void ApplyRoundBtn(Button btn, int radius) =>
+            ApplyRoundCtrl(btn, radius);
+
+        private static GraphicsPath MakeRoundPath(Rectangle rect, int r)
+        {
+            var path = new GraphicsPath();
+            path.AddArc(rect.Left,           rect.Top,            r * 2, r * 2, 180, 90);
+            path.AddArc(rect.Right - r * 2,  rect.Top,            r * 2, r * 2, 270, 90);
+            path.AddArc(rect.Right - r * 2,  rect.Bottom - r * 2, r * 2, r * 2,   0, 90);
+            path.AddArc(rect.Left,           rect.Bottom - r * 2, r * 2, r * 2,  90, 90);
+            path.CloseFigure();
+            return path;
         }
 
         private static void ApplyRound(Control ctrl, int r)
         {
-            ctrl.Paint += (_, e) =>
+            void ApplyRegion()
+            {
+                if (ctrl.Width <= 0 || ctrl.Height <= 0) return;
+                using var path = MakeRoundPath(new Rectangle(0, 0, ctrl.Width, ctrl.Height), r);
+                ctrl.Region = new Region(path);
+            }
+            ApplyRegion();
+            ctrl.Resize += (_, _) => ApplyRegion();
+            ctrl.Paint  += (_, e) =>
             {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                using var path = new GraphicsPath();
-                var rect = new Rectangle(0, 0, ctrl.Width - 1, ctrl.Height - 1);
-                path.AddArc(rect.Left,              rect.Top,             r * 2, r * 2, 180, 90);
-                path.AddArc(rect.Right  - r * 2,    rect.Top,             r * 2, r * 2, 270, 90);
-                path.AddArc(rect.Right  - r * 2,    rect.Bottom - r * 2,  r * 2, r * 2, 0,   90);
-                path.AddArc(rect.Left,              rect.Bottom - r * 2,  r * 2, r * 2, 90,  90);
-                path.CloseFigure();
+                using var path = MakeRoundPath(new Rectangle(0, 0, ctrl.Width - 1, ctrl.Height - 1), r);
                 using var fill = new SolidBrush(ctrl.BackColor);
                 e.Graphics.FillPath(fill, path);
             };
+        }
+
+        private static void ApplyRoundCtrl(Control ctrl, int radius)
+        {
+            void Apply()
+            {
+                if (ctrl.Width <= 0 || ctrl.Height <= 0) return;
+                using var path = MakeRoundPath(new Rectangle(0, 0, ctrl.Width, ctrl.Height), radius);
+                ctrl.Region = new Region(path);
+            }
+            Apply();
+            ctrl.Resize += (_, _) => Apply();
         }
     }
 }
