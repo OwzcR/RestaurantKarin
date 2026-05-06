@@ -142,7 +142,7 @@ namespace RestaurantKarin
                         ('Docena', 'doc', 'Cantidad', 'Conjunto de 12 piezas'),
                         ('Piezas', 'pcs', 'Cantidad', 'Múltiples unidades individuales'),
                         ('Rebanada', 'rbd', 'Cantidad', 'Porción de algo cortado'),
-                        ('Pizca', 'pz', 'Volumen', 'Pequeña cantidad de condimento');
+                        ('Pizca', 'piz', 'Volumen', 'Pequeña cantidad de condimento');
 
                         INSERT INTO Insumos (Nombre, StockActual, id_unidad, Unidad, StockMinimo, FechaEntrada, Costo) VALUES
                         ('Aceite vegetal', 0, 7, 'mililitros', 0, '', 0.03),
@@ -249,14 +249,9 @@ CREATE TABLE IF NOT EXISTS tabla_unidades (
                 using (var cmd = new SQLiteCommand(sqlCreateTable, conexion))
                     cmd.ExecuteNonQuery();
 
-                // Verificar si la tabla tiene datos
-                using (var cmd = new SQLiteCommand("SELECT COUNT(*) FROM tabla_unidades;", conexion))
-                {
-                    if (Convert.ToInt32((long)cmd.ExecuteScalar()!) == 0)
-                    {
-                        // Insertar unidades iniciales
-                        string sqlInsertUnidades = @"
-INSERT INTO tabla_unidades (nombre, abreviatura, tipo, descripcion) VALUES
+                // Insertar o ignorar unidades iniciales para bases ya existentes
+                string sqlInsertUnidades = @"
+INSERT OR IGNORE INTO tabla_unidades (nombre, abreviatura, tipo, descripcion) VALUES
 ('Kilogramo', 'kg', 'Peso', 'Unidad de peso'),
 ('Gramo', 'g', 'Peso', 'Unidad de peso'),
 ('Miligramo', 'mg', 'Peso', 'Unidad de peso'),
@@ -271,11 +266,9 @@ INSERT INTO tabla_unidades (nombre, abreviatura, tipo, descripcion) VALUES
 ('Docena', 'doc', 'Cantidad', 'Conjunto de 12 piezas'),
 ('Piezas', 'pcs', 'Cantidad', 'Múltiples unidades individuales'),
 ('Rebanada', 'rbd', 'Cantidad', 'Porción de algo cortado'),
-('Pizca', 'pz', 'Volumen', 'Pequeña cantidad de condimento');";
-                        using (var cmd2 = new SQLiteCommand(sqlInsertUnidades, conexion))
-                            cmd2.ExecuteNonQuery();
-                    }
-                }
+('Pizca', 'piz', 'Volumen', 'Pequeña cantidad de condimento');";
+                using (var cmd2 = new SQLiteCommand(sqlInsertUnidades, conexion))
+                    cmd2.ExecuteNonQuery();
 
                 // Agregar columna id_unidad a Insumos si no existe
                 try
