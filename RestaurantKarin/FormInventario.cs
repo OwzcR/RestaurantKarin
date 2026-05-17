@@ -32,7 +32,7 @@ namespace RestaurantKarin
             this.BackColor = Color.Transparent;
             this.Dock = DockStyle.Fill;
             this.Padding = new Padding(15, 10, 15, 10);
-
+            
             // --- 1. BUSCADOR (TOP) ---
             Panel pnlTop = new Panel { Dock = DockStyle.Top, Height = 60 };
             Panel pill = new Panel { BackColor = ColSearchBg, Width = 380, Height = 36, Location = new Point(0, 10) };

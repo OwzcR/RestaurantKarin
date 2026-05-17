@@ -281,6 +281,23 @@ INSERT OR IGNORE INTO tabla_unidades (nombre, abreviatura, tipo, descripcion) VA
             }
         }
 
+        public static void AsegurarTablaMovimientosInventario()
+        {
+            if (!File.Exists("karin_pos.db")) return;
+            using var con = new SQLiteConnection(ConnectionString);
+            con.Open();
+            using var cmd = new SQLiteCommand(@"
+                CREATE TABLE IF NOT EXISTS inventario_movimientos (
+                    id_movimiento INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_cuenta     INTEGER,
+                    insumo        TEXT NOT NULL,
+                    cantidad      REAL NOT NULL,
+                    unidad        TEXT NOT NULL,
+                    fecha         DATETIME DEFAULT CURRENT_TIMESTAMP
+                );", con);
+            cmd.ExecuteNonQuery();
+        }
+
         public static void AsegurarTablasRecetas()
         {
             string nombreArchivo = "karin_pos.db";
@@ -345,6 +362,7 @@ CREATE TABLE IF NOT EXISTS Insumos (
 
             RecetasBaseDatos.SembrarEjemplosSiVacio();
             SembrarInsumosSiVacio();
+            AsegurarTablaMovimientosInventario();
         }
 
         private static void SembrarInsumosSiVacio()
@@ -394,16 +412,15 @@ INSERT OR IGNORE INTO Insumos (Nombre, StockActual, id_unidad, Unidad, StockMini
                 {
                     con.Open();
                     string sql = @"
-                        SELECT 
-                            COALESCE(DATE(c.fecha_apertura), @inicio) as Fecha,
+                        SELECT
+                            DATE(c.fecha_cierre) as Fecha,
                             COUNT(DISTINCT c.id_cuenta) as CantidadOrdenes,
-                            ROUND(COALESCE(SUM(CASE WHEN c.estado_cuenta='Cerrada' THEN c.total ELSE 0 END), 0), 2) as VentasCompletadas,
-                            ROUND(COALESCE(SUM(CASE WHEN c.estado_cuenta='Abierta' THEN c.total ELSE 0 END), 0), 2) as VentasPendientes,
                             ROUND(COALESCE(SUM(c.total), 0), 2) as VentasTotal
                         FROM cuenta c
-                        WHERE DATE(c.fecha_apertura) BETWEEN @inicio AND @fin
-                        GROUP BY DATE(c.fecha_apertura)
-                        ORDER BY c.fecha_apertura DESC";
+                        WHERE DATE(c.fecha_cierre) BETWEEN @inicio AND @fin
+                          AND c.estado_cuenta = 'Cerrada'
+                        GROUP BY DATE(c.fecha_cierre)
+                        ORDER BY DATE(c.fecha_cierre) DESC";
 
                     using (var cmd = new SQLiteCommand(sql, con))
                     {
@@ -515,35 +532,35 @@ INSERT OR IGNORE INTO Insumos (Nombre, StockActual, id_unidad, Unidad, StockMini
         }
 
         /// <summary>
-        /// Obtiene el reporte de consumo de inventario (insumos) en un rango de fechas.
+        /// Obtiene el reporte de consumo de inventario en un rango de fechas.
+        /// Consulta la tabla inventario_movimientos para mostrar lo consumido en el período.
         /// </summary>
         public static System.Data.DataTable ObtenerReporteConsumoInventario(DateTime fechaInicio, DateTime fechaFin)
         {
             var dt = new System.Data.DataTable();
             try
             {
-                using (var con = new SQLiteConnection(ConnectionString))
-                {
-                    con.Open();
-                    string sql = @"
-                        SELECT 
-                            i.Nombre as Insumo,
-                            i.Unidad as Unidad,
-                            i.StockActual as StockActual,
-                            i.StockMinimo as StockMinimo,
-                            ROUND(i.Costo, 2) as CostoUnitario,
-                            ROUND(i.StockActual * i.Costo, 2) as CostoTotal
-                        FROM Insumos i
-                        ORDER BY i.Nombre";
+                using var con = new SQLiteConnection(ConnectionString);
+                con.Open();
+                string sql = @"
+                    SELECT
+                        m.insumo  AS Insumo,
+                        m.unidad  AS Unidad,
+                        ROUND(SUM(m.cantidad), 4)                              AS Consumido,
+                        ROUND(SUM(m.cantidad * COALESCE(i.Costo, 0)), 2)       AS CostoTotal,
+                        COALESCE(i.StockActual, 0)                             AS StockActual
+                    FROM inventario_movimientos m
+                    LEFT JOIN Insumos i ON i.Nombre = m.insumo COLLATE NOCASE
+                    WHERE DATE(m.fecha) BETWEEN @inicio AND @fin
+                    GROUP BY m.insumo, m.unidad
+                    ORDER BY Consumido DESC
+                    LIMIT 10;";
 
-                    using (var cmd = new SQLiteCommand(sql, con))
-                    {
-                        using (var adapter = new System.Data.SQLite.SQLiteDataAdapter(cmd))
-                        {
-                            adapter.Fill(dt);
-                        }
-                    }
-                }
+                using var cmd = new SQLiteCommand(sql, con);
+                cmd.Parameters.AddWithValue("@inicio", fechaInicio.ToString("yyyy-MM-dd"));
+                cmd.Parameters.AddWithValue("@fin",    fechaFin.ToString("yyyy-MM-dd"));
+                using var adapter = new System.Data.SQLite.SQLiteDataAdapter(cmd);
+                adapter.Fill(dt);
             }
             catch (Exception ex)
             {

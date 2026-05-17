@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet build *)"
+      "Bash(dotnet build *)",
+      "PowerShell(Head *)",
+      "Bash(Start-Process \"RestaurantKarin\\\\bin\\\\Debug\\\\net9.0-windows\\\\RestaurantKarin.exe\")",
+      "PowerShell(Start-Process \"C:\\\\Users\\\\victo\\\\OneDrive\\\\Documentos\\\\facu izma\\\\octavo\\\\proyecto\\\\KarinRestaurant2\\\\RestaurantKarin\\\\bin\\\\Debug\\\\net9.0-windows\\\\RestaurantKarin.exe\")",
+      "PowerShell(Start-Process \"C:\\\\Users\\\\victo\\\\OneDrive\\\\Documentos\\\\facu izma\\\\octavo\\\\proyecto\\\\KarinRestaurant2\\\\RestaurantKarin\\\\bin\\\\Debug\\\\net10.0-windows\\\\RestaurantKarin.exe\")",
+      "PowerShell(Get-Process *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(Get-ChildItem -Recurse -Directory)"
     ]
   }
 }
